@@ -13,12 +13,6 @@ import (
 // Base String for url
 const baseURL = "http://www.readcomics.tv/"
 
-//Move Struct to specific Functions
-type Comic struct {
-	Title string
-	Link string
-	Category string
-}
 
 func allComicScrape(w http.ResponseWriter, r *http.Request) {
 
@@ -28,8 +22,13 @@ func allComicScrape(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
+	type Comic struct {
+		Title string
+		Link string
+		Category string
+	}
+	
 	var comicList []Comic
-
 
 	doc.Find(".container li").Each(func(index int, item *goquery.Selection){
 		comic := Comic{}
@@ -46,9 +45,62 @@ func allComicScrape(w http.ResponseWriter, r *http.Request) {
 	})
 
 	res, _ := json.Marshal(comicList)
-	fmt.Fprintf(w, "Last Comic: %s", string(res))
+	fmt.Fprintf(w, string(res))
 }
 
+func getPopularComics(w http.ResponseWriter, r *http.Request) {
+
+	pageNumber := r.URL.Path[len("/popular-comics/"):]
+	doc, err := goquery.NewDocument(baseURL + "popular-comic/" + pageNumber)
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	type Genre struct {
+		Name string
+		GenreLink string
+	}
+
+	type PopComic struct{
+		Title string
+		Link string
+		Img string
+		Genres []Genre
+	}
+
+
+	var popularcomics []PopComic
+	
+
+	doc.Find(".manga-box").Each(func(index int, item *goquery.Selection){
+		comic := PopComic{}
+		//Gets top level information
+		comic.Title = item.Find("h3").Children().Text()
+		comic.Link, _ = item.Find("h3").Children().Attr("href")
+		comic.Img, _ = item.Find("img").Attr("src")
+
+		item.Find(".tags").Each(func(index int, child *goquery.Selection){
+			genre := Genre{}
+			genre.Name = child.Text()
+			genre.GenreLink, _ = child.Attr("href")
+			comic.Genres = append(comic.Genres, genre)
+		})
+
+		popularcomics = append(popularcomics, comic)
+	})
+	res, _ := json.Marshal(popularcomics)
+	fmt.Fprintf(w, string(res))
+}
+
+// func getChapters(w http.ResponseWriter, r *http.Request) {
+// 	//Get the Comic name out the URL
+// 	comicName := r.URL.Path[len("/listchapters/"):]
+// 	doc, err := goquery.NewDocument(baseURL + "comic/" + comicName)
+
+// 	var chapters := []struct{
+// 		chapter
+// 	}
+// }
 
 
 // func handler(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +108,8 @@ func allComicScrape(w http.ResponseWriter, r *http.Request) {
 // }
 
 func main() {
-	http.HandleFunc("/", allComicScrape)
+	http.HandleFunc("/comic-list-AZ", allComicScrape)
+	http.HandleFunc("/popular-comics/",getPopularComics)
 	http.ListenAndServe(":8000",nil)
 }
 
