@@ -199,11 +199,83 @@ func getComicImageURL(url string, numOfPages int, c chan string ){
 	close(c)
 }
 
+func getSearchCategories(w http.ResponseWriter, r *http.Request){
+    url := baseURL + "advanced-search";
+    var categories []string
+    doc, err := goquery.NewDocument(url)
+    if err != nil{
+    	log.Fatal(err)
+    }
+
+    doc.Find(".search-checks").ChildrenFiltered("li").Each(func(index int, item *goquery.Selection) {
+    	categories = append(categories, item.Text())
+    })
+
+    res, _ := json.Marshal(categories)
+    fmt.Fprintf(w, string(res))
+
+}
+
+func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
+	url := baseURL + "advanced-search?"
+	queryParams := r.URL.Query()
+
+	if queryParams.Get("key") != ""{
+		url += "key=" + queryParams.Get("key")
+	}
+
+	if queryParams.Get("include") != ""{
+		url += "&wg=" + queryParams.Get("include")
+	}
+
+	if queryParams.Get("exclude") != ""{
+		url += "&wog=" + queryParams.Get("exclude")
+	}
+
+	if queryParams.Get("status") != ""{
+		url += "&status=" + queryParams.Get("status")
+	}
+
+	if queryParams.Get("page") != ""{
+		url += "&page=" + queryParams.Get("page")
+	}
+
+	type SearchResult struct{
+		Title string
+		Link string
+		Img string
+		Genre string 
+	}
+
+	var results []SearchResult
+	doc, err := goquery.NewDocument(url)
+    if err != nil{
+    	log.Fatal(err)
+    }
+
+    doc.Find(".manga-box").Each(func(index int, item *goquery.Selection){
+    	comic := SearchResult{}
+    	comic.Title = item.Find("h3").Children().Text()
+    	comic.Link, _ = item.Find("h3").Children().Attr("href")
+    	comic.Img, _ = item.Find("img").Attr("src")
+    	comic.Genre = strings.TrimSpace(item.Find(".genre").Text())
+    	results = append(results, comic)
+    })
+
+    res, _ := json.Marshal(results)
+	fmt.Fprintf(w,string(res))
+}
+
 func main() {
 	http.HandleFunc("/comic-list-AZ", allComicScrape)
 	http.HandleFunc("/popular-comics/",getPopularComics)
 	http.HandleFunc("/chapter-list/", getChapters)
 	http.HandleFunc("/read-comic/", readComic)
+	http.HandleFunc("/search-categories", getSearchCategories)
+	http.HandleFunc("/advanced-search", performAdvancedSearch)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Hello fellow, Gruntt User!")
+	})
 	http.ListenAndServe(":8000",nil)
 }
 
