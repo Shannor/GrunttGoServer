@@ -27,7 +27,7 @@ func allComicScrape(w http.ResponseWriter, r *http.Request) {
 		Link string
 		Category string
 	}
-	
+
 	var comicList []Comic
 
 	doc.Find(".container li").Each(func(index int, item *goquery.Selection){
@@ -71,7 +71,6 @@ func getPopularComics(w http.ResponseWriter, r *http.Request) {
 
 	var popularcomics []PopComic
 	
-
 	doc.Find(".manga-box").Each(func(index int, item *goquery.Selection){
 		comic := PopComic{}
 		//Gets top level information
@@ -92,24 +91,75 @@ func getPopularComics(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(res))
 }
 
-// func getChapters(w http.ResponseWriter, r *http.Request) {
-// 	//Get the Comic name out the URL
-// 	comicName := r.URL.Path[len("/listchapters/"):]
-// 	doc, err := goquery.NewDocument(baseURL + "comic/" + comicName)
+type Chapter struct{
+	ChapterName string
+	Link string
+	ReleaseDate string
+}
 
-// 	var chapters := []struct{
-// 		chapter
-// 	}
-// }
+func getChapters(w http.ResponseWriter, r *http.Request) {
+	//Get the Comic name out the URL
+	comicName := r.URL.Path[len("/chapter-list/"):]
+	doc, err := goquery.NewDocument(baseURL + "comic/" + comicName)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var chapters []Chapter
+
+	doc.Find(".basic-list").Children().Each(func(index int, item *goquery.Selection){
+		chapter := Chapter{}
+		chapter.Link, _ = item.ChildrenFiltered("a").Attr("href")
+		chapter.ChapterName = item.ChildrenFiltered("a").Text()
+		chapter.ReleaseDate = item.ChildrenFiltered("Span").Text()
+		chapters = append(chapters, chapter)
+
+	})
+
+	pageCount :=  doc.Find(".general-nav").Children().Length() - 1
+
+	if pageCount > 0{
+		chapterChannels := make(chan []Chapter, pageCount)
+
+		go getExtraChapters(pageCount, comicName, chapterChannels)
+
+		for i := range chapterChannels {
+			chapters = append(chapters, i...)
+		}
+	}
+
+	res, _ := json.Marshal(chapters)
+	fmt.Fprintf(w, string(res))
+}
 
 
-// func handler(w http.ResponseWriter, r *http.Request) {
-// 	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
-// }
+func getExtraChapters(extras int, comicName string, cc chan []Chapter){
+	for i := 2; i <= extras; i++ {
+
+		doc, err := goquery.NewDocument(baseURL + "comic/" + comicName + "/" + strconv.Itoa(i))
+		if err != nil{
+			log.Fatal(err)
+		}
+
+		var chapters []Chapter
+		doc.Find(".basic-list").Children().Each(func(index int, item *goquery.Selection){
+			chapter := Chapter{}
+			chapter.Link, _ = item.ChildrenFiltered("a").Attr("href")
+			chapter.ChapterName = item.ChildrenFiltered("a").Text()
+			chapter.ReleaseDate = item.ChildrenFiltered("Span").Text()
+			chapters = append(chapters, chapter)
+		})
+
+		cc <- chapters
+	}
+	close(cc)
+}
 
 func main() {
 	http.HandleFunc("/comic-list-AZ", allComicScrape)
 	http.HandleFunc("/popular-comics/",getPopularComics)
+	http.HandleFunc("/chapter-list/", getChapters)
 	http.ListenAndServe(":8000",nil)
 }
 
