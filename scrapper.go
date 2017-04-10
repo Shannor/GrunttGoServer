@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-
+	"strings"
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -156,10 +156,54 @@ func getExtraChapters(extras int, comicName string, cc chan []Chapter){
 	close(cc)
 }
 
+func readComic(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path[len("/read-comic/"):]
+	//0 = ComicName, 1 = Chapter Number
+	paths := strings.Split(path, "/")
+	if len(paths) < 2{
+		//TODO:Change to network response
+		log.Fatal("Missing Comic Name or Chapter Number.")
+	}
+	url := baseURL + paths[0] + "/chapter-" + paths[1]
+	doc, err := goquery.NewDocument(url)
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	numOfPages := doc.Find(".full-select").Last().Children().Length()
+	pagesChannels := make(chan string, numOfPages)
+
+
+	go getComicImageURL(url, numOfPages,pagesChannels)
+
+	var urls []string
+	for i := range pagesChannels{
+		urls = append(urls, i)
+	}
+
+	res, _ := json.Marshal(urls)
+	fmt.Fprintf(w, string(res))
+}
+
+func getComicImageURL(url string, numOfPages int, c chan string ){
+	for i := 1; i <= numOfPages; i++{
+		pageUrl := url + "/" + strconv.Itoa(i)
+		doc, err := goquery.NewDocument(pageUrl)
+		if err !=nil{
+			log.Fatal(err)
+		}
+		link, _ := doc.Find("#main_img").Attr("src")
+		c <- link
+	}
+	close(c)
+}
+
 func main() {
 	http.HandleFunc("/comic-list-AZ", allComicScrape)
 	http.HandleFunc("/popular-comics/",getPopularComics)
 	http.HandleFunc("/chapter-list/", getChapters)
+	http.HandleFunc("/read-comic/", readComic)
 	http.ListenAndServe(":8000",nil)
 }
 
