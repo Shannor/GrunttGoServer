@@ -284,6 +284,71 @@ func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w,string(res))
 }
 
+//Request example -> description?name=old-man-logan
+func getDescription(w http.ResponseWriter, r *http.Request) {
+
+	url := baseURL + "comic/"
+	queryParams := r.URL.Query()
+
+
+	if queryParams.Get("name") != ""{
+		url += queryParams.Get("name")
+	}
+
+	doc, err := goquery.NewDocument(url)
+    if err != nil{
+    	http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Fatal(err)
+		return
+    }
+
+    type Response struct{
+    	Description string `json:"description"`
+    	LargeImg string `json:"largeImg"`
+    	FormatedName string  `json:"formatedName"`
+    	Name string `json:"name"`
+    	AlternateName string `json:"alternateName"`
+    	ReleaseYear string `json:"releaseYear"`
+    	Status string `json:"status"`
+    	Author string `json:"author"`
+    	Genre string `json:"genre"`
+    }
+    description := Response{ FormatedName: queryParams.Get("name")}
+    	// FormatedName: queryParams.Get("name")
+
+    doc.Find(".manga-details").Find("tr").Each(func(index int, item *goquery.Selection){
+    	//Chain of ugly if statetments
+    	pair := strings.Split(item.First().Children().Text(), ":")
+    	key := strings.TrimSpace(pair[0])
+    	val := strings.TrimSpace(pair[1])
+
+    	if key == "Name" {
+    		description.Name = val
+    	}else if key == "Alternate Name"{
+    		description.AlternateName = val	
+    	}else if key == "Year of Release"{
+    		description.ReleaseYear = val
+    	}else if key == "Status"{
+    		description.Status = val
+    	}else if key == "Author"{
+    		description.Author = val
+    	}else if key == "Genre"{
+    		description.Genre = val
+    	}
+
+
+
+    })
+    description.LargeImg, _ = doc.Find(".manga-image").ChildrenFiltered("img").Attr("src")
+    descript := strings.TrimSpace(doc.Find(".pdesc").Text())
+    description.Description = descript
+
+    w.Header().Set("Content-Type", "application/json")
+    res, _ := json.Marshal(description)
+    fmt.Fprintf(w, string(res))
+
+}
+
 func main() {
 
 	http.HandleFunc("/comic-list-AZ", allComicsRequest)
@@ -292,6 +357,7 @@ func main() {
 	http.HandleFunc("/read-comic/", readComic)
 	http.HandleFunc("/search-categories", getSearchCategories)
 	http.HandleFunc("/advanced-search", performAdvancedSearch)
+	http.HandleFunc("/description", getDescription)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello fellow, Gruntt User!")
 	})
