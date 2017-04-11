@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"google.golang.org/appengine"
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -284,6 +285,7 @@ func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+
 	http.HandleFunc("/comic-list-AZ", allComicsRequest)
 	http.HandleFunc("/popular-comics/",getPopularComics)
 	http.HandleFunc("/chapter-list/", getChapters)
@@ -294,5 +296,7 @@ func main() {
 		fmt.Fprintf(w, "Hello fellow, Gruntt User!")
 	})
 	http.ListenAndServe(":8000",nil)
+	appengine.Main()
+
 }
 
