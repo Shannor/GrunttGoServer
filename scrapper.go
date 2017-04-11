@@ -14,12 +14,14 @@ import (
 const baseURL = "http://www.readcomics.tv/"
 
 
-func allComicScrape(w http.ResponseWriter, r *http.Request) {
+func allComicsRequest(w http.ResponseWriter, r *http.Request) {
 
 	doc, err := goquery.NewDocument(baseURL + "comic-list")
 	if err != nil{
 		//Return error here
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Fatal(err)
+		return 
 	}
 
 	type Comic struct {
@@ -52,8 +54,11 @@ func getPopularComics(w http.ResponseWriter, r *http.Request) {
 
 	pageNumber := r.URL.Path[len("/popular-comics/"):]
 	doc, err := goquery.NewDocument(baseURL + "popular-comic/" + pageNumber)
+
 	if err != nil{
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Fatal(err)
+		return 
 	}
 
 	type Genre struct {
@@ -103,7 +108,9 @@ func getChapters(w http.ResponseWriter, r *http.Request) {
 	doc, err := goquery.NewDocument(baseURL + "comic/" + comicName)
 
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Fatal(err)
+		return 
 	}
 
 	var chapters []Chapter
@@ -140,6 +147,7 @@ func getExtraChapters(extras int, comicName string, cc chan []Chapter){
 		doc, err := goquery.NewDocument(baseURL + "comic/" + comicName + "/" + strconv.Itoa(i))
 		if err != nil{
 			log.Fatal(err)
+			return 
 		}
 
 		var chapters []Chapter
@@ -163,12 +171,16 @@ func readComic(w http.ResponseWriter, r *http.Request) {
 	if len(paths) < 2{
 		//TODO:Change to network response
 		log.Fatal("Missing Comic Name or Chapter Number.")
+		http.Error(w, "Missing Comic Name or Chapter Number Params.", http.StatusBadRequest)
+		return 
 	}
 	url := baseURL + paths[0] + "/chapter-" + paths[1]
 	doc, err := goquery.NewDocument(url)
 
 	if err != nil{
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Fatal(err)
+		return 
 	}
 
 	numOfPages := doc.Find(".full-select").Last().Children().Length()
@@ -192,6 +204,7 @@ func getComicImageURL(url string, numOfPages int, c chan string ){
 		doc, err := goquery.NewDocument(pageUrl)
 		if err !=nil{
 			log.Fatal(err)
+			return 
 		}
 		link, _ := doc.Find("#main_img").Attr("src")
 		c <- link
@@ -204,7 +217,9 @@ func getSearchCategories(w http.ResponseWriter, r *http.Request){
     var categories []string
     doc, err := goquery.NewDocument(url)
     if err != nil{
-    	log.Fatal(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Fatal(err)
+		return
     }
 
     doc.Find(".search-checks").ChildrenFiltered("li").Each(func(index int, item *goquery.Selection) {
@@ -250,7 +265,9 @@ func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
 	var results []SearchResult
 	doc, err := goquery.NewDocument(url)
     if err != nil{
-    	log.Fatal(err)
+    	http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Fatal(err)
+		return
     }
 
     doc.Find(".manga-box").Each(func(index int, item *goquery.Selection){
@@ -267,7 +284,7 @@ func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/comic-list-AZ", allComicScrape)
+	http.HandleFunc("/comic-list-AZ", allComicsRequest)
 	http.HandleFunc("/popular-comics/",getPopularComics)
 	http.HandleFunc("/chapter-list/", getChapters)
 	http.HandleFunc("/read-comic/", readComic)
