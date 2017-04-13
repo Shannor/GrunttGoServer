@@ -8,27 +8,39 @@ import (
 	"strconv"
 	"strings"
 	"google.golang.org/appengine"
+	"google.golang.org/appengine/urlfetch"
 	"github.com/PuerkitoBio/goquery"
 )
 
 // Base String for url
 const baseURL = "http://www.readcomics.tv/"
 
-
+func errorHandler(w http.ResponseWriter, r *http.Request, status int) {
+    w.WriteHeader(status)
+    if status == http.StatusNotFound {
+        fmt.Fprint(w, "custom 404")
+    }
+}
+//Request format -> /chapter-list/{chpater Name} 
 func allComicsRequest(w http.ResponseWriter, r *http.Request) {
 
+
+	// c := appengine.NewContext(r)
+	// client := urlfetch.Client(c)
+	// resp, _ := client.Get(baseURL + "comic-list")
 	doc, err := goquery.NewDocument(baseURL + "comic-list")
+
 	if err != nil{
 		//Return error here
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Fatal(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("%v",err.Error())
 		return 
 	}
 
 	type Comic struct {
-		Title string
-		Link string
-		Category string
+		Title string `json:"title"`
+		Link string `json:"link"`
+		Category string `json:"category"`
 	}
 
 	var comicList []Comic
@@ -47,13 +59,19 @@ func allComicsRequest(w http.ResponseWriter, r *http.Request) {
 		comicList = append(comicList, comic)
 	})
 
+	w.Header().Set("Content-Type", "application/json")
 	res, _ := json.Marshal(comicList)
 	fmt.Fprintf(w, string(res))
 }
 
+//Request Format -> /popular-comics/{page Number}
 func getPopularComics(w http.ResponseWriter, r *http.Request) {
 
 	pageNumber := r.URL.Path[len("/popular-comics/"):]
+	// TODO: Check if pageNumber is not there or formated wrong
+	// c := appengine.NewContext(r)
+	// client := urlfetch.Client(c)
+	// resp, _ := client.Get(baseURL + "popular-comic/" + pageNumber)
 	doc, err := goquery.NewDocument(baseURL + "popular-comic/" + pageNumber)
 
 	if err != nil{
@@ -63,15 +81,15 @@ func getPopularComics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type Genre struct {
-		Name string
-		GenreLink string
+		Name string `json:"name"`
+		GenreLink string `json:"genreLink"`
 	}
 
 	type PopComic struct{
-		Title string
-		Link string
-		Img string
-		Genres []Genre
+		Title string `json:"title"`
+		Link string `json:"link"`
+		Img string 	`json:"img"`
+		Genres []Genre `json:"genres"`
 	}
 
 
@@ -93,20 +111,27 @@ func getPopularComics(w http.ResponseWriter, r *http.Request) {
 
 		popularcomics = append(popularcomics, comic)
 	})
+	
+	w.Header().Set("Content-Type", "application/json")
 	res, _ := json.Marshal(popularcomics)
 	fmt.Fprintf(w, string(res))
 }
 
 type Chapter struct{
-	ChapterName string
-	Link string
-	ReleaseDate string
+	ChapterName string `json:"chapterName"`
+	Link string `json:"link"`
+	ReleaseDate string `json:"releaseDate"`
 }
-
+//Request Format -> /chapter-list/{Comic Name}
 func getChapters(w http.ResponseWriter, r *http.Request) {
-	//Get the Comic name out the URL
+
 	comicName := r.URL.Path[len("/chapter-list/"):]
-	doc, err := goquery.NewDocument(baseURL + "comic/" + comicName)
+	// TODO: Check if name is right or wrong
+	c := appengine.NewContext(r)
+	client := urlfetch.Client(c)
+	resp, _ := client.Get(baseURL + "comic/" + comicName)
+	doc, err := goquery.NewDocumentFromResponse(resp)
+
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -130,22 +155,27 @@ func getChapters(w http.ResponseWriter, r *http.Request) {
 	if pageCount > 0{
 		chapterChannels := make(chan []Chapter, pageCount)
 
-		go getExtraChapters(pageCount, comicName, chapterChannels)
+		go getExtraChapters(pageCount,r ,comicName, chapterChannels)
 
 		for i := range chapterChannels {
 			chapters = append(chapters, i...)
 		}
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	res, _ := json.Marshal(chapters)
 	fmt.Fprintf(w, string(res))
 }
 
 
-func getExtraChapters(extras int, comicName string, cc chan []Chapter){
+func getExtraChapters(extras int, r *http.Request ,comicName string, cc chan []Chapter){
 	for i := 2; i <= extras; i++ {
 
-		doc, err := goquery.NewDocument(baseURL + "comic/" + comicName + "/" + strconv.Itoa(i))
+		c := appengine.NewContext(r)
+		client := urlfetch.Client(c)
+		resp, _ := client.Get(baseURL + "comic/" + comicName + "/" + strconv.Itoa(i))
+		doc, err := goquery.NewDocumentFromResponse(resp)
+
 		if err != nil{
 			log.Fatal(err)
 			return 
@@ -165,6 +195,7 @@ func getExtraChapters(extras int, comicName string, cc chan []Chapter){
 	close(cc)
 }
 
+//Request Format -> /read-comic/{Comic Name}/{Chapter Number}
 func readComic(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path[len("/read-comic/"):]
 	//0 = ComicName, 1 = Chapter Number
@@ -176,7 +207,11 @@ func readComic(w http.ResponseWriter, r *http.Request) {
 		return 
 	}
 	url := baseURL + paths[0] + "/chapter-" + paths[1]
-	doc, err := goquery.NewDocument(url)
+	c := appengine.NewContext(r)
+	client := urlfetch.Client(c)
+	resp, _ := client.Get(url)
+	doc, err := goquery.NewDocumentFromResponse(resp)
+
 
 	if err != nil{
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -188,35 +223,45 @@ func readComic(w http.ResponseWriter, r *http.Request) {
 	pagesChannels := make(chan string, numOfPages)
 
 
-	go getComicImageURL(url, numOfPages,pagesChannels)
+	go getComicImageURL(url,r ,numOfPages,pagesChannels)
 
 	var urls []string
 	for i := range pagesChannels{
 		urls = append(urls, i)
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	res, _ := json.Marshal(urls)
 	fmt.Fprintf(w, string(res))
 }
-
-func getComicImageURL(url string, numOfPages int, c chan string ){
+//Helper function for ReadComic function
+func getComicImageURL(url string, r *http.Request ,numOfPages int, cc chan string ){
 	for i := 1; i <= numOfPages; i++{
 		pageUrl := url + "/" + strconv.Itoa(i)
-		doc, err := goquery.NewDocument(pageUrl)
+		c := appengine.NewContext(r)
+		client := urlfetch.Client(c)
+		resp, _ := client.Get(pageUrl)
+		doc, err := goquery.NewDocumentFromResponse(resp)
+
 		if err !=nil{
 			log.Fatal(err)
 			return 
 		}
 		link, _ := doc.Find("#main_img").Attr("src")
-		c <- link
+		cc <- link
 	}
-	close(c)
+	close(cc)
 }
 
+//Request Format -> /search-categories
 func getSearchCategories(w http.ResponseWriter, r *http.Request){
     url := baseURL + "advanced-search";
     var categories []string
-    doc, err := goquery.NewDocument(url)
+    c := appengine.NewContext(r)
+	client := urlfetch.Client(c)
+	resp, _ := client.Get(url)
+	doc, err := goquery.NewDocumentFromResponse(resp)
+
     if err != nil{
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Fatal(err)
@@ -227,11 +272,14 @@ func getSearchCategories(w http.ResponseWriter, r *http.Request){
     	categories = append(categories, item.Text())
     })
 
+	w.Header().Set("Content-Type", "application/json")
     res, _ := json.Marshal(categories)
     fmt.Fprintf(w, string(res))
 
 }
 
+//Request Format -> /advanced-search?key={Search Param}&include={Desired Attributes}
+//&exclude={Undesired attributes}&status={status}&page={Page number for results}
 func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
 	url := baseURL + "advanced-search?"
 	queryParams := r.URL.Query()
@@ -257,14 +305,17 @@ func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type SearchResult struct{
-		Title string
-		Link string
-		Img string
-		Genre string 
+		Title string `json:"title"`
+		Link string `json:"link"`
+		Img string 	`json:"img"`
+		Genre string  `json:"genre"`
 	}
 
 	var results []SearchResult
-	doc, err := goquery.NewDocument(url)
+	c := appengine.NewContext(r)
+	client := urlfetch.Client(c)
+	resp, _ := client.Get(url)
+	doc, err := goquery.NewDocumentFromResponse(resp)
     if err != nil{
     	http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Fatal(err)
@@ -284,7 +335,7 @@ func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w,string(res))
 }
 
-//Request example -> description?name=old-man-logan
+//Reqest Format -> /description?name={Comic Name}
 func getDescription(w http.ResponseWriter, r *http.Request) {
 
 	url := baseURL + "comic/"
@@ -295,7 +346,11 @@ func getDescription(w http.ResponseWriter, r *http.Request) {
 		url += queryParams.Get("name")
 	}
 
-	doc, err := goquery.NewDocument(url)
+	c := appengine.NewContext(r)
+	client := urlfetch.Client(c)
+	resp, _ := client.Get(url)
+	doc, err := goquery.NewDocumentFromResponse(resp)
+
     if err != nil{
     	http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Fatal(err)
@@ -313,8 +368,8 @@ func getDescription(w http.ResponseWriter, r *http.Request) {
     	Author string `json:"author"`
     	Genre string `json:"genre"`
     }
-    description := Response{ FormatedName: queryParams.Get("name")}
-    	// FormatedName: queryParams.Get("name")
+    
+ 	description := Response{ FormatedName: queryParams.Get("name")}
 
     doc.Find(".manga-details").Find("tr").Each(func(index int, item *goquery.Selection){
     	//Chain of ugly if statetments
@@ -337,18 +392,15 @@ func getDescription(w http.ResponseWriter, r *http.Request) {
     	}
 
 
-
     })
     description.LargeImg, _ = doc.Find(".manga-image").ChildrenFiltered("img").Attr("src")
-    descript := strings.TrimSpace(doc.Find(".pdesc").Text())
-    description.Description = descript
+    description.Description = strings.TrimSpace(doc.Find(".pdesc").Text())
 
     w.Header().Set("Content-Type", "application/json")
     res, _ := json.Marshal(description)
     fmt.Fprintf(w, string(res))
 
 }
-
 func main() {
 
 	http.HandleFunc("/comic-list-AZ", allComicsRequest)
@@ -360,6 +412,7 @@ func main() {
 	http.HandleFunc("/description", getDescription)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello fellow, Gruntt User!")
+		return 
 	})
 	http.ListenAndServe(":8000",nil)
 	appengine.Main()
