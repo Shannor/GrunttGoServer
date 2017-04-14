@@ -16,10 +16,7 @@ import (
 const baseURL = "http://www.readcomics.tv/"
 
 func errorHandler(w http.ResponseWriter, r *http.Request, status int) {
-    w.WriteHeader(status)
-    if status == http.StatusNotFound {
-        fmt.Fprint(w, "custom 404")
-    }
+    http.Error(w,http.StatusText(status) ,status)
 }
 //Request format -> /chapter-list/{chpater Name} 
 func allComicsRequest(w http.ResponseWriter, r *http.Request) {
