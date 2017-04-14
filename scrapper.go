@@ -24,16 +24,21 @@ func errorHandler(w http.ResponseWriter, r *http.Request, status int) {
 //Request format -> /chapter-list/{chpater Name} 
 func allComicsRequest(w http.ResponseWriter, r *http.Request) {
 
+	var doc *goquery.Document
+	var err error
 
-	// c := appengine.NewContext(r)
-	// client := urlfetch.Client(c)
-	// resp, _ := client.Get(baseURL + "comic-list")
-	doc, err := goquery.NewDocument(baseURL + "comic-list")
+	if appengine.IsDevAppServer(){
+		c := appengine.NewContext(r)
+		client := urlfetch.Client(c)
+		resp, _ := client.Get(baseURL + "comic-list")
+		doc, err = goquery.NewDocumentFromResponse(resp)
+	}else{
+		doc, err = goquery.NewDocument(baseURL + "comic-list")
+	}
 
 	if err != nil{
 		//Return error here
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("%v",err.Error())
+		errorHandler(w, r, http.StatusInternalServerError)
 		return 
 	}
 
@@ -68,15 +73,22 @@ func allComicsRequest(w http.ResponseWriter, r *http.Request) {
 func getPopularComics(w http.ResponseWriter, r *http.Request) {
 
 	pageNumber := r.URL.Path[len("/popular-comics/"):]
-	// TODO: Check if pageNumber is not there or formated wrong
-	// c := appengine.NewContext(r)
-	// client := urlfetch.Client(c)
-	// resp, _ := client.Get(baseURL + "popular-comic/" + pageNumber)
-	doc, err := goquery.NewDocument(baseURL + "popular-comic/" + pageNumber)
+	//TODO: check if pageNumber is a number and not more than that
+	var doc *goquery.Document
+	var err error
+	url := baseURL + "popular-comic/" + pageNumber
+
+	if appengine.IsDevAppServer(){
+		c := appengine.NewContext(r)
+		client := urlfetch.Client(c)
+		resp, _ := client.Get(url)
+		doc, err = goquery.NewDocumentFromResponse(resp)
+	}else{
+		doc, err = goquery.NewDocument(url)
+	}
 
 	if err != nil{
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Fatal(err)
+		errorHandler(w, r, http.StatusInternalServerError)
 		return 
 	}
 
@@ -127,15 +139,21 @@ func getChapters(w http.ResponseWriter, r *http.Request) {
 
 	comicName := r.URL.Path[len("/chapter-list/"):]
 	// TODO: Check if name is right or wrong
-	c := appengine.NewContext(r)
-	client := urlfetch.Client(c)
-	resp, _ := client.Get(baseURL + "comic/" + comicName)
-	doc, err := goquery.NewDocumentFromResponse(resp)
+	url := baseURL + "comic/" + comicName
+	var doc *goquery.Document
+	var err error
 
+	if appengine.IsDevAppServer(){
+		c := appengine.NewContext(r)
+		client := urlfetch.Client(c)
+		resp, _ := client.Get(url)
+		doc, err = goquery.NewDocumentFromResponse(resp)
+	}else{
+		doc, err = goquery.NewDocument(url)
+	}
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Fatal(err)
+		errorHandler(w, r, http.StatusInternalServerError)
 		return 
 	}
 
@@ -171,13 +189,21 @@ func getChapters(w http.ResponseWriter, r *http.Request) {
 func getExtraChapters(extras int, r *http.Request ,comicName string, cc chan []Chapter){
 	for i := 2; i <= extras; i++ {
 
-		c := appengine.NewContext(r)
-		client := urlfetch.Client(c)
-		resp, _ := client.Get(baseURL + "comic/" + comicName + "/" + strconv.Itoa(i))
-		doc, err := goquery.NewDocumentFromResponse(resp)
+		var doc *goquery.Document
+		var err error
+		url := baseURL + "comic/" + comicName + "/" + strconv.Itoa(i)
+
+		if appengine.IsDevAppServer(){
+			c := appengine.NewContext(r)
+			client := urlfetch.Client(c)
+			resp, _ := client.Get(url)
+			doc, err = goquery.NewDocumentFromResponse(resp)
+		}else{
+			doc, err = goquery.NewDocument(url)
+		}
 
 		if err != nil{
-			log.Fatal(err)
+			log.Printf(err.Error())
 			return 
 		}
 
@@ -200,22 +226,26 @@ func readComic(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path[len("/read-comic/"):]
 	//0 = ComicName, 1 = Chapter Number
 	paths := strings.Split(path, "/")
+	//TODO: check how split returns resutls
 	if len(paths) < 2{
-		//TODO:Change to network response
-		log.Fatal("Missing Comic Name or Chapter Number.")
-		http.Error(w, "Missing Comic Name or Chapter Number Params.", http.StatusBadRequest)
+		errorHandler(w, r, http.StatusBadRequest)
 		return 
 	}
 	url := baseURL + paths[0] + "/chapter-" + paths[1]
-	c := appengine.NewContext(r)
-	client := urlfetch.Client(c)
-	resp, _ := client.Get(url)
-	doc, err := goquery.NewDocumentFromResponse(resp)
+	var doc *goquery.Document
+	var err error
 
+	if appengine.IsDevAppServer(){
+		c := appengine.NewContext(r)
+		client := urlfetch.Client(c)
+		resp, _ := client.Get(url)
+		doc, err = goquery.NewDocumentFromResponse(resp)
+	}else{
+		doc, err = goquery.NewDocument(url)
+	}
 
 	if err != nil{
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Fatal(err)
+		errorHandler(w, r, http.StatusInternalServerError)
 		return 
 	}
 
@@ -238,13 +268,20 @@ func readComic(w http.ResponseWriter, r *http.Request) {
 func getComicImageURL(url string, r *http.Request ,numOfPages int, cc chan string ){
 	for i := 1; i <= numOfPages; i++{
 		pageUrl := url + "/" + strconv.Itoa(i)
-		c := appengine.NewContext(r)
-		client := urlfetch.Client(c)
-		resp, _ := client.Get(pageUrl)
-		doc, err := goquery.NewDocumentFromResponse(resp)
+		var doc *goquery.Document
+		var err error
+
+		if appengine.IsDevAppServer(){
+			c := appengine.NewContext(r)
+			client := urlfetch.Client(c)
+			resp, _ := client.Get(pageUrl)
+			doc, err = goquery.NewDocumentFromResponse(resp)
+		}else{
+			doc, err = goquery.NewDocument(pageUrl)
+		}
 
 		if err !=nil{
-			log.Fatal(err)
+			log.Printf(err.Error())
 			return 
 		}
 		link, _ := doc.Find("#main_img").Attr("src")
@@ -255,16 +292,22 @@ func getComicImageURL(url string, r *http.Request ,numOfPages int, cc chan strin
 
 //Request Format -> /search-categories
 func getSearchCategories(w http.ResponseWriter, r *http.Request){
-    url := baseURL + "advanced-search";
+    url := baseURL + "advanced-search"
     var categories []string
-    c := appengine.NewContext(r)
-	client := urlfetch.Client(c)
-	resp, _ := client.Get(url)
-	doc, err := goquery.NewDocumentFromResponse(resp)
+	var doc *goquery.Document
+	var err error
+
+	if appengine.IsDevAppServer(){
+		c := appengine.NewContext(r)
+		client := urlfetch.Client(c)
+		resp, _ := client.Get(url)
+		doc, err = goquery.NewDocumentFromResponse(resp)
+	}else{
+		doc, err = goquery.NewDocument(url)
+	}
 
     if err != nil{
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Fatal(err)
+    	errorHandler(w, r, http.StatusInternalServerError)
 		return
     }
 
@@ -283,6 +326,8 @@ func getSearchCategories(w http.ResponseWriter, r *http.Request){
 func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
 	url := baseURL + "advanced-search?"
 	queryParams := r.URL.Query()
+	var doc *goquery.Document
+	var err error
 
 	if queryParams.Get("key") != ""{
 		url += "key=" + queryParams.Get("key")
@@ -312,13 +357,18 @@ func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var results []SearchResult
-	c := appengine.NewContext(r)
-	client := urlfetch.Client(c)
-	resp, _ := client.Get(url)
-	doc, err := goquery.NewDocumentFromResponse(resp)
+
+	if appengine.IsDevAppServer(){
+		c := appengine.NewContext(r)
+		client := urlfetch.Client(c)
+		resp, _ := client.Get(url)
+		doc, err = goquery.NewDocumentFromResponse(resp)
+	}else{
+		doc, err = goquery.NewDocument(url)
+	}
+
     if err != nil{
-    	http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Fatal(err)
+    	errorHandler(w, r, http.StatusInternalServerError)
 		return
     }
 
@@ -331,6 +381,7 @@ func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
     	results = append(results, comic)
     })
 
+    w.Header().Set("Content-Type", "application/json")
     res, _ := json.Marshal(results)
 	fmt.Fprintf(w,string(res))
 }
@@ -340,20 +391,27 @@ func getDescription(w http.ResponseWriter, r *http.Request) {
 
 	url := baseURL + "comic/"
 	queryParams := r.URL.Query()
-
+	var doc *goquery.Document
+	var err error
 
 	if queryParams.Get("name") != ""{
 		url += queryParams.Get("name")
+	}else{
+		errorHandler(w, r, http.StatusBadRequest)
+		return
 	}
 
-	c := appengine.NewContext(r)
-	client := urlfetch.Client(c)
-	resp, _ := client.Get(url)
-	doc, err := goquery.NewDocumentFromResponse(resp)
+	if appengine.IsDevAppServer(){
+		c := appengine.NewContext(r)
+		client := urlfetch.Client(c)
+		resp, _ := client.Get(url)
+		doc, err = goquery.NewDocumentFromResponse(resp)
+	}else{
+		doc, err = goquery.NewDocument(url)
+	}
 
     if err != nil{
-    	http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Fatal(err)
+    	errorHandler(w, r, http.StatusInternalServerError)
 		return
     }
 
