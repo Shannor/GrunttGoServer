@@ -179,16 +179,11 @@ func getPopularComics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type Genre struct {
-		Name      string `json:"name"`
-		GenreLink string `json:"genreLink"`
-	}
-
 	type PopComic struct {
-		Title  string  `json:"title"`
-		Link   string  `json:"link"`
-		Img    string  `json:"img"`
-		Genres []Genre `json:"genres"`
+		Title      string `json:"title"`
+		Link       string `json:"link"`
+		Img        string `json:"img"`
+		IssueCount int    `json:"issueCount"`
 	}
 
 	var popularcomics []PopComic
@@ -201,13 +196,12 @@ func getPopularComics(w http.ResponseWriter, r *http.Request) {
 			comic.Title = item.Find("h3").Children().Text()
 			comic.Link, _ = item.Find("h3").Children().Attr("href")
 			comic.Img, _ = item.Find("img").Attr("src")
-
-			item.Find(".tags").Each(func(index int, child *goquery.Selection) {
-				genre := Genre{}
-				genre.Name = child.Text()
-				genre.GenreLink, _ = child.Attr("href")
-				comic.Genres = append(comic.Genres, genre)
-			})
+			count := item.Find(".detail").First().Text()
+			split := strings.Split(count, " ")
+			val, err := strconv.Atoi(split[0])
+			if err == nil {
+				comic.IssueCount = val
+			}
 
 			popularcomics = append(popularcomics, comic)
 		})
