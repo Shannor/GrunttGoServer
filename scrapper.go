@@ -35,8 +35,7 @@ func allComicsRequest(w http.ResponseWriter, r *http.Request) {
 		resp        *http.Response
 		url         string
 	)
-	// queryParams := r.URL.Query()
-	// choice := queryParams.Get("url")
+
 	choice := r.URL.Query().Get("url")
 	switch choice {
 	case comicExtraURLParam:
@@ -124,6 +123,7 @@ func allComicsRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 //Request Format -> /popular-comics/{page Number}?url={website}
+//TODO: change pagenumber to a query param
 func getPopularComics(w http.ResponseWriter, r *http.Request) {
 
 	pageNumber := r.URL.Path[len("/popular-comics/"):]
@@ -206,7 +206,22 @@ func getPopularComics(w http.ResponseWriter, r *http.Request) {
 			popularcomics = append(popularcomics, comic)
 		})
 	case readcomicsURLParam:
+		doc.Find(".media").Each(func(index int, item *goquery.Selection) {
+			comic := PopComic{}
+			//Gets top level information
+			obj := item.Find(".chart-title")
+			comic.Title = obj.Text()
+			comic.Link, _ = obj.Attr("href")
+			comic.Img, _ = item.Find("img").Attr("src")
+			count := item.Find("i").Parent().Text()
+			count = strings.TrimSpace(count)
+			val, err := strconv.Atoi(count)
+			if err == nil {
+				comic.IssueCount = val
+			}
 
+			popularcomics = append(popularcomics, comic)
+		})
 	default:
 		return
 	}
@@ -216,6 +231,7 @@ func getPopularComics(w http.ResponseWriter, r *http.Request) {
 	w.Write(res)
 }
 
+//Chapter : Struct to represent chapters
 type Chapter struct {
 	ChapterName string `json:"chapterName"`
 	Link        string `json:"link"`
