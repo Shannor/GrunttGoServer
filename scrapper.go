@@ -238,17 +238,27 @@ type Chapter struct {
 	ReleaseDate string `json:"releaseDate"`
 }
 
-//Request Format -> /chapter-list/{Comic Name}
+//Request Format -> /chapter-list/{Comic Name}?url={type}
 func getChapters(w http.ResponseWriter, r *http.Request) {
 
 	comicName := r.URL.Path[len("/chapter-list/"):]
 	// TODO: Check if name is right or wrong
-	url := COMICEXTRA + "comic/" + comicName
 	var (
 		doc         *goquery.Document
 		err, docErr error
 		resp        *http.Response
+		url         string
 	)
+
+	choice := r.URL.Query().Get("url")
+	switch choice {
+	case comicExtraURLParam:
+		url = COMICEXTRA + "comic/" + comicName
+	case readcomicsURLParam:
+		url = READCOMIC + "comic/" + comicName
+	default:
+		return
+	}
 
 	if appengine.IsDevAppServer() {
 		c := appengine.NewContext(r)
@@ -278,31 +288,39 @@ func getChapters(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	var chapters []Chapter
+	log.Println(url)
+	switch choice {
+	case comicExtraURLParam:
 
-	doc.Find(".basic-list").Children().Each(func(index int, item *goquery.Selection) {
-		chapter := Chapter{}
-		chapter.Link, _ = item.ChildrenFiltered("a").Attr("href")
-		chapter.ChapterName = item.ChildrenFiltered("a").Text()
-		chapter.ReleaseDate = item.ChildrenFiltered("Span").Text()
-		chapters = append(chapters, chapter)
+		doc.Find("#list").Children().Each(func(index int, item *goquery.Selection) {
+			chapter := Chapter{}
+			obj := item.Find("a")
+			chapter.Link, _ = obj.Attr("href")
+			chapter.ChapterName = obj.Text()
+			chapter.ReleaseDate = item.Find("td").Last().Text()
+			chapters = append(chapters, chapter)
+		})
 
-	})
+		pageCount := doc.Find(".general-nav").Children().Length() - 1
 
-	pageCount := doc.Find(".general-nav").Children().Length() - 1
+		if pageCount > 0 {
+			chapterChannels := make(chan []Chapter, pageCount)
 
-	if pageCount > 0 {
-		chapterChannels := make(chan []Chapter, pageCount)
+			go getExtraChapters(pageCount, r, comicName, chapterChannels)
 
-		go getExtraChapters(pageCount, r, comicName, chapterChannels)
-
-		for i := range chapterChannels {
-			chapters = append(chapters, i...)
+			for i := range chapterChannels {
+				chapters = append(chapters, i...)
+			}
 		}
+	case readcomicsURLParam:
+
+	default:
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	res, _ := json.Marshal(chapters)
-	fmt.Fprintf(w, string(res))
+	w.Write(res)
 }
 
 func getExtraChapters(extras int, r *http.Request, comicName string, cc chan []Chapter) {
@@ -343,12 +361,14 @@ func getExtraChapters(extras int, r *http.Request, comicName string, cc chan []C
 		defer resp.Body.Close()
 
 		var chapters []Chapter
-		doc.Find(".basic-list").Children().Each(func(index int, item *goquery.Selection) {
+		doc.Find("#list").Children().Each(func(index int, item *goquery.Selection) {
 			chapter := Chapter{}
-			chapter.Link, _ = item.ChildrenFiltered("a").Attr("href")
-			chapter.ChapterName = item.ChildrenFiltered("a").Text()
-			chapter.ReleaseDate = item.ChildrenFiltered("Span").Text()
+			obj := item.Find("a")
+			chapter.Link, _ = obj.Attr("href")
+			chapter.ChapterName = obj.Text()
+			chapter.ReleaseDate = item.Find("td").Last().Text()
 			chapters = append(chapters, chapter)
+
 		})
 
 		cc <- chapters
