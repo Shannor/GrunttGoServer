@@ -48,112 +48,31 @@ func allComicsRequest(w http.ResponseWriter, r *http.Request) {
 	w.Write(res)
 }
 
-//Request Format -> /popular-comics/{page Number}?url={website}
+//Request Format -> /popular-comics?page={pageNumber}&url={website}
 //TODO: change pagenumber to a query param
 func getPopularComics(w http.ResponseWriter, r *http.Request) {
-
-	pageNumber := r.URL.Path[len("/popular-comics/"):]
-	//TODO: check if pageNumber is a number and not more than that
+	pageNumber := r.URL.Query().Get("page")
 	if _, err := strconv.Atoi(pageNumber); err != nil {
-		//Throw wrong formated request type error
+		//TODO: Throw wrong formated request type error
 		return
 	}
-
-	var (
-		doc         *goquery.Document
-		err, docErr error
-		resp        *http.Response
-		url         string
-	)
 
 	choice := r.URL.Query().Get("url")
-	switch choice {
-	case comicExtraURLParam:
-		url = COMICEXTRA + "popular-comic/" + pageNumber
-	case readcomicsURLParam:
-		url = READCOMIC + "filterList?page=" + pageNumber + "&sortBy=views&asc=false"
-	default:
-		return
-	}
-
-	if appengine.IsDevAppServer() {
-		c := appengine.NewContext(r)
-		client := urlfetch.Client(c)
-		resp, err = client.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-	} else {
-		resp, err = http.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-	}
-
-	//Error with inital url request
+	url, err := utils.CreatePopularComicsURL(choice, pageNumber)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if resp.StatusCode != 200 {
-		http.Error(w, resp.Status, resp.StatusCode)
+	doc, err := utils.GetGoQueryDoc(url, r)
+
+	if err != nil {
 		return
 	}
 
-	defer resp.Body.Close()
-
-	//Error with goquery
-	if docErr != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	type PopComic struct {
-		Title      string `json:"title"`
-		Link       string `json:"link"`
-		Img        string `json:"img"`
-		IssueCount int    `json:"issueCount"`
-	}
-
-	var popularcomics []PopComic
-
-	switch choice {
-	case comicExtraURLParam:
-		doc.Find(".cartoon-box").Each(func(index int, item *goquery.Selection) {
-			comic := PopComic{}
-			//Gets top level information
-			comic.Title = item.Find("h3").Children().Text()
-			comic.Link, _ = item.Find("h3").Children().Attr("href")
-			comic.Img, _ = item.Find("img").Attr("src")
-			count := item.Find(".detail").First().Text()
-			split := strings.Split(count, " ")
-			val, err := strconv.Atoi(split[0])
-			if err == nil {
-				comic.IssueCount = val
-			}
-
-			popularcomics = append(popularcomics, comic)
-		})
-	case readcomicsURLParam:
-		doc.Find(".media").Each(func(index int, item *goquery.Selection) {
-			comic := PopComic{}
-			//Gets top level information
-			obj := item.Find(".chart-title")
-			comic.Title = obj.Text()
-			comic.Link, _ = obj.Attr("href")
-			comic.Img, _ = item.Find("img").Attr("src")
-			count := item.Find("i").Parent().Text()
-			count = strings.TrimSpace(count)
-			val, err := strconv.Atoi(count)
-			if err == nil {
-				comic.IssueCount = val
-			}
-
-			popularcomics = append(popularcomics, comic)
-		})
-	default:
-		return
-	}
+	popularComics := utils.GetPopularComics(doc, choice)
 
 	w.Header().Set("Content-Type", "application/json")
-	res, _ := json.Marshal(popularcomics)
+	res, _ := json.Marshal(popularComics)
 	w.Write(res)
 }
 
@@ -169,17 +88,10 @@ func getChapters(w http.ResponseWriter, r *http.Request) {
 
 	comicName := r.URL.Path[len("/chapter-list/"):]
 	// TODO: Check if name is right or wrong
-	var (
-		url string
-	)
 
 	choice := r.URL.Query().Get("url")
-	switch choice {
-	case comicExtraURLParam:
-		url = COMICEXTRA + "comic/" + comicName
-	case readcomicsURLParam:
-		url = READCOMIC + "comic/" + comicName
-	default:
+	url, err := utils.CreateChapterURL(choice, comicName)
+	if err != nil {
 		return
 	}
 
@@ -290,29 +202,23 @@ func readComic(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path[len("/read-comic/"):]
 	//0 = ComicName, 1 = Chapter Number
 	paths := strings.Split(path, "/")
+	comicName, chapterNumber := paths[0], paths[1]
 	//TODO: check how split returns resutls
 	if len(paths) < 2 {
 		// errorHandler(w, r, http.StatusBadRequest,err)
 		return
 	}
 
-	var (
-		url string
-	)
-
 	choice := r.URL.Query().Get("url")
-	switch choice {
-	case comicExtraURLParam:
-		url = COMICEXTRA + paths[0] + "/chapter-" + paths[1]
-	case readcomicsURLParam:
-		url = READCOMIC + "comic/" + paths[0] + "/" + paths[1]
-	default:
+	url, err := utils.CreateReadComicURL(choice, comicName, chapterNumber)
+	if err != nil {
+		utils.ErrorHandler(w, http.StatusBadRequest, err)
 		return
 	}
-
 	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
 		utils.ErrorHandler(w, http.StatusBadRequest, err)
+		return
 	}
 	var urls []string
 
@@ -341,38 +247,11 @@ func readComic(w http.ResponseWriter, r *http.Request) {
 func getComicImageURL(url string, r *http.Request, numOfPages int, cc chan string) {
 	for i := 1; i <= numOfPages; i++ {
 		pageURL := url + "/" + strconv.Itoa(i)
-		var (
-			doc         *goquery.Document
-			err, docErr error
-			resp        *http.Response
-		)
 
-		if appengine.IsDevAppServer() {
-			c := appengine.NewContext(r)
-			client := urlfetch.Client(c)
-			resp, err = client.Get(pageURL)
-			doc, docErr = goquery.NewDocumentFromResponse(resp)
-		} else {
-			resp, err = http.Get(pageURL)
-			doc, docErr = goquery.NewDocumentFromResponse(resp)
-		}
-
+		doc, err := utils.GetGoQueryDoc(pageURL, r)
 		if err != nil {
-			log.Printf(err.Error())
 			return
 		}
-		if resp.StatusCode != 200 {
-			log.Printf(resp.Status)
-			return
-		}
-
-		if docErr != nil {
-			log.Printf(docErr.Error())
-			return
-		}
-
-		defer resp.Body.Close()
-
 		link, _ := doc.Find("#main_img").Attr("src")
 		cc <- link
 	}
@@ -460,45 +339,17 @@ func getDescription(w http.ResponseWriter, r *http.Request) {
 
 	url := COMICEXTRA + "comic/"
 	queryParams := r.URL.Query()
-	var (
-		doc         *goquery.Document
-		err, docErr error
-		resp        *http.Response
-	)
 
 	if queryParams.Get("name") != "" {
 		url += queryParams.Get("name")
 	} else {
-		utils.ErrorHandler(w, http.StatusBadRequest, err)
 		return
 	}
 
-	if appengine.IsDevAppServer() {
-		c := appengine.NewContext(r)
-		client := urlfetch.Client(c)
-		resp, err = client.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-	} else {
-		resp, err = http.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-	}
-
+	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
-		utils.ErrorHandler(w, http.StatusInternalServerError, err)
 		return
 	}
-
-	if resp.StatusCode != 200 {
-		http.Error(w, resp.Status, resp.StatusCode)
-		return
-	}
-
-	if docErr != nil {
-		http.Error(w, docErr.Error(), http.StatusInternalServerError)
-	}
-
-	defer resp.Body.Close()
-
 	type Response struct {
 		Description   string `json:"description"`
 		LargeImg      string `json:"largeImg"`
