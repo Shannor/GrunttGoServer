@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"scrapper/utils"
+
 	"github.com/PuerkitoBio/goquery"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/urlfetch"
@@ -22,103 +24,27 @@ const READCOMIC = "http://readcomics.website/"
 const comicExtraURLParam = "ce"
 const readcomicsURLParam = "rcw"
 
-func errorHandler(w http.ResponseWriter, r *http.Request, status int, err error) {
-	http.Error(w, err.Error(), status)
-}
-
 //Request format -> /chapter-list/{chpater Name}?url={website}
 func allComicsRequest(w http.ResponseWriter, r *http.Request) {
 
-	var (
-		doc         *goquery.Document
-		err, docErr error
-		resp        *http.Response
-		url         string
-	)
+	param := r.URL.Query().Get("url")
+	url, formatErr := utils.CreateAllComicsURL(param)
 
-	choice := r.URL.Query().Get("url")
-	switch choice {
-	case comicExtraURLParam:
-		url = COMICEXTRA + "comic-list"
-	case readcomicsURLParam:
-		url = READCOMIC + "changeMangaList?type=text"
-	default:
+	if formatErr != nil {
+		utils.ErrorHandler(w, http.StatusBadRequest, formatErr)
 		return
 	}
 
-	if appengine.IsDevAppServer() {
-		c := appengine.NewContext(r)
-		client := urlfetch.Client(c)
-		resp, err = client.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-
-	} else {
-		resp, err = http.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-	}
-
+	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.ErrorHandler(w, http.StatusBadRequest, err)
 		return
 	}
 
-	if resp.StatusCode != 200 {
-		http.Error(w, resp.Status, resp.StatusCode)
-		return
-	}
-
-	if docErr != nil {
-		http.Error(w, docErr.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	defer resp.Body.Close()
-
-	type Comic struct {
-		Title    string `json:"title"`
-		Link     string `json:"link"`
-		Category string `json:"category"`
-	}
-
-	var comicList []Comic
-	switch choice {
-	case comicExtraURLParam:
-		doc.Find(".series-col li").Each(func(index int, item *goquery.Selection) {
-			comic := Comic{}
-			comic.Title = item.Children().Text()
-			// if strings.Contains(comic.Title, "Dead") {
-			// 	log.Print(comic.Title)
-			// }
-			//Has value for if it exists
-			comic.Link, _ = item.Children().Attr("href")
-			comic.Category = item.Parent().SiblingsFiltered("div").Text()
-
-			if _, err := strconv.Atoi(comic.Category); err == nil {
-				//Category is a number
-				comic.Category = "#"
-			}
-
-			comicList = append(comicList, comic)
-		})
-	case readcomicsURLParam:
-		doc.Find(".type-content li").Each(func(index int, item *goquery.Selection) {
-			comic := Comic{}
-			comic.Title = strings.TrimSpace(item.ChildrenFiltered("a").Text())
-			comic.Link, _ = item.ChildrenFiltered("a").Attr("href")
-
-			if _, err := strconv.Atoi(string(comic.Title[0])); err == nil {
-				comic.Category = "#"
-			} else {
-				comic.Category = string(comic.Title[0])
-			}
-			comicList = append(comicList, comic)
-		})
-	default:
-		return
-	}
+	comicList := utils.GetAllComics(doc, param)
 
 	w.Header().Set("Content-Type", "application/json")
-	res, _ := json.Marshal(comicList) //Catch error here
+	res, _ := json.Marshal(comicList)
 	w.Write(res)
 }
 
@@ -244,10 +170,7 @@ func getChapters(w http.ResponseWriter, r *http.Request) {
 	comicName := r.URL.Path[len("/chapter-list/"):]
 	// TODO: Check if name is right or wrong
 	var (
-		doc         *goquery.Document
-		err, docErr error
-		resp        *http.Response
-		url         string
+		url string
 	)
 
 	choice := r.URL.Query().Get("url")
@@ -260,35 +183,12 @@ func getChapters(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if appengine.IsDevAppServer() {
-		c := appengine.NewContext(r)
-		client := urlfetch.Client(c)
-		resp, err = client.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-	} else {
-		resp, err = http.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-	}
-
+	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
-		errorHandler(w, r, http.StatusInternalServerError, err)
-		return
+		utils.ErrorHandler(w, http.StatusBadRequest, err)
 	}
-
-	if resp.StatusCode != 200 {
-		http.Error(w, resp.Status, resp.StatusCode)
-		return
-	}
-
-	if docErr != nil {
-		errorHandler(w, r, http.StatusInternalServerError, err)
-		return
-	}
-
-	defer resp.Body.Close()
 
 	var chapters []Chapter
-	log.Println(url)
 	switch choice {
 	case comicExtraURLParam:
 
@@ -313,8 +213,17 @@ func getChapters(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	case readcomicsURLParam:
+		doc.Find(".chapters").Children().Each(func(index int, item *goquery.Selection) {
+			chapter := Chapter{}
+			obj := item.Find("a")
+			chapter.Link, _ = obj.Attr("href")
+			chapter.ChapterName = obj.Text()
+			chapter.ReleaseDate = strings.TrimSpace(item.Find(".date-chapter-title-rtl").Text())
+			chapters = append(chapters, chapter)
+		})
 
 	default:
+		log.Println("No or incorrcect URL param.")
 		return
 	}
 
@@ -376,7 +285,7 @@ func getExtraChapters(extras int, r *http.Request, comicName string, cc chan []C
 	close(cc)
 }
 
-//Request Format -> /read-comic/{Comic Name}/{Chapter Number}
+//Request Format -> /read-comic/{Comic Name}/{Chapter Number}?url={param}
 func readComic(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path[len("/read-comic/"):]
 	//0 = ComicName, 1 = Chapter Number
@@ -386,58 +295,52 @@ func readComic(w http.ResponseWriter, r *http.Request) {
 		// errorHandler(w, r, http.StatusBadRequest,err)
 		return
 	}
-	url := COMICEXTRA + paths[0] + "/chapter-" + paths[1]
+
 	var (
-		doc         *goquery.Document
-		err, docErr error
-		resp        *http.Response
+		url string
 	)
 
-	if appengine.IsDevAppServer() {
-		c := appengine.NewContext(r)
-		client := urlfetch.Client(c)
-		resp, err = client.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-	} else {
-		resp, err = http.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
+	choice := r.URL.Query().Get("url")
+	switch choice {
+	case comicExtraURLParam:
+		url = COMICEXTRA + paths[0] + "/chapter-" + paths[1]
+	case readcomicsURLParam:
+		url = READCOMIC + "comic/" + paths[0] + "/" + paths[1]
+	default:
+		return
 	}
 
+	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
-		errorHandler(w, r, http.StatusInternalServerError, err)
-		return
+		utils.ErrorHandler(w, http.StatusBadRequest, err)
 	}
-
-	if resp.StatusCode != 200 {
-		http.Error(w, resp.Status, resp.StatusCode)
-		return
-	}
-
-	if docErr != nil {
-		http.Error(w, docErr.Error(), http.StatusInternalServerError)
-	}
-
-	numOfPages := doc.Find(".full-select").Last().Children().Length()
-	pagesChannels := make(chan string, numOfPages)
-
-	defer resp.Body.Close()
-
-	go getComicImageURL(url, r, numOfPages, pagesChannels)
-
 	var urls []string
-	for i := range pagesChannels {
-		urls = append(urls, i)
+
+	switch choice {
+	case comicExtraURLParam:
+		numOfPages := doc.Find(".full-select").First().Children().Length()
+		pagesChannels := make(chan string, numOfPages)
+
+		go getComicImageURL(url, r, numOfPages, pagesChannels)
+
+		for i := range pagesChannels {
+			urls = append(urls, i)
+		}
+	case readcomicsURLParam:
+
+	default:
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	res, _ := json.Marshal(urls)
-	fmt.Fprintf(w, string(res))
+	w.Write(res)
 }
 
 //Helper function for ReadComic function
 func getComicImageURL(url string, r *http.Request, numOfPages int, cc chan string) {
 	for i := 1; i <= numOfPages; i++ {
-		pageUrl := url + "/" + strconv.Itoa(i)
+		pageURL := url + "/" + strconv.Itoa(i)
 		var (
 			doc         *goquery.Document
 			err, docErr error
@@ -447,10 +350,10 @@ func getComicImageURL(url string, r *http.Request, numOfPages int, cc chan strin
 		if appengine.IsDevAppServer() {
 			c := appengine.NewContext(r)
 			client := urlfetch.Client(c)
-			resp, err = client.Get(pageUrl)
+			resp, err = client.Get(pageURL)
 			doc, docErr = goquery.NewDocumentFromResponse(resp)
 		} else {
-			resp, err = http.Get(pageUrl)
+			resp, err = http.Get(pageURL)
 			doc, docErr = goquery.NewDocumentFromResponse(resp)
 		}
 
@@ -480,37 +383,13 @@ func getComicImageURL(url string, r *http.Request, numOfPages int, cc chan strin
 func getSearchCategories(w http.ResponseWriter, r *http.Request) {
 	url := COMICEXTRA + "advanced-search"
 	var (
-		categories  []string
-		doc         *goquery.Document
-		err, docErr error
-		resp        *http.Response
+		categories []string
 	)
 
-	if appengine.IsDevAppServer() {
-		c := appengine.NewContext(r)
-		client := urlfetch.Client(c)
-		resp, err = client.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-	} else {
-		resp, err = http.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-	}
-
+	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
-		errorHandler(w, r, http.StatusInternalServerError, err)
-		return
+		utils.ErrorHandler(w, http.StatusBadRequest, err)
 	}
-
-	if resp.StatusCode != 200 {
-		http.Error(w, resp.Status, resp.StatusCode)
-		return
-	}
-
-	if docErr != nil {
-		http.Error(w, docErr.Error(), http.StatusInternalServerError)
-	}
-
-	defer resp.Body.Close()
 
 	doc.Find(".search-checks").ChildrenFiltered("li").Each(func(index int, item *goquery.Selection) {
 		categories = append(categories, item.Text())
@@ -527,12 +406,6 @@ func getSearchCategories(w http.ResponseWriter, r *http.Request) {
 func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
 	url := COMICEXTRA + "advanced-search?"
 	queryParams := r.URL.Query()
-
-	var (
-		doc         *goquery.Document
-		err, docErr error
-		resp        *http.Response
-	)
 
 	if queryParams.Get("key") != "" {
 		url += "key=" + queryParams.Get("key")
@@ -563,32 +436,10 @@ func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
 
 	var results []SearchResult
 
-	if appengine.IsDevAppServer() {
-		c := appengine.NewContext(r)
-		client := urlfetch.Client(c)
-		resp, err = client.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-	} else {
-		resp, err = http.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-	}
-
+	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
-		errorHandler(w, r, http.StatusInternalServerError, err)
-		return
+		utils.ErrorHandler(w, http.StatusBadRequest, err)
 	}
-
-	if resp.StatusCode != 200 {
-		http.Error(w, resp.Status, resp.StatusCode)
-		return
-	}
-
-	if docErr != nil {
-		http.Error(w, docErr.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	defer resp.Body.Close()
 
 	doc.Find(".manga-box").Each(func(index int, item *goquery.Selection) {
 		comic := SearchResult{}
@@ -618,7 +469,7 @@ func getDescription(w http.ResponseWriter, r *http.Request) {
 	if queryParams.Get("name") != "" {
 		url += queryParams.Get("name")
 	} else {
-		errorHandler(w, r, http.StatusBadRequest, err)
+		utils.ErrorHandler(w, http.StatusBadRequest, err)
 		return
 	}
 
@@ -633,7 +484,7 @@ func getDescription(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		errorHandler(w, r, http.StatusInternalServerError, err)
+		utils.ErrorHandler(w, http.StatusInternalServerError, err)
 		return
 	}
 
