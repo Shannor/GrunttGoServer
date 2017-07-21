@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"google.golang.org/appengine"
-	"google.golang.org/appengine/urlfetch"
 )
 
 // COMICEXTRA url
@@ -49,8 +47,8 @@ func allComicsRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 //Request Format -> /popular-comics?page={pageNumber}&url={website}
-//TODO: change pagenumber to a query param
 func getPopularComics(w http.ResponseWriter, r *http.Request) {
+
 	pageNumber := r.URL.Query().Get("page")
 	if _, err := strconv.Atoi(pageNumber); err != nil {
 		//TODO: Throw wrong formated request type error
@@ -64,7 +62,6 @@ func getPopularComics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	doc, err := utils.GetGoQueryDoc(url, r)
-
 	if err != nil {
 		return
 	}
@@ -77,17 +74,11 @@ func getPopularComics(w http.ResponseWriter, r *http.Request) {
 }
 
 //Chapter : Struct to represent chapters
-type Chapter struct {
-	ChapterName string `json:"chapterName"`
-	Link        string `json:"link"`
-	ReleaseDate string `json:"releaseDate"`
-}
 
 //Request Format -> /chapter-list/{Comic Name}?url={type}
 func getChapters(w http.ResponseWriter, r *http.Request) {
 
 	comicName := r.URL.Path[len("/chapter-list/"):]
-	// TODO: Check if name is right or wrong
 
 	choice := r.URL.Query().Get("url")
 	url, err := utils.CreateChapterURL(choice, comicName)
@@ -100,101 +91,11 @@ func getChapters(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorHandler(w, http.StatusBadRequest, err)
 	}
 
-	var chapters []Chapter
-	switch choice {
-	case comicExtraURLParam:
-
-		doc.Find("#list").Children().Each(func(index int, item *goquery.Selection) {
-			chapter := Chapter{}
-			obj := item.Find("a")
-			chapter.Link, _ = obj.Attr("href")
-			chapter.ChapterName = obj.Text()
-			chapter.ReleaseDate = item.Find("td").Last().Text()
-			chapters = append(chapters, chapter)
-		})
-
-		pageCount := doc.Find(".general-nav").Children().Length() - 1
-
-		if pageCount > 0 {
-			chapterChannels := make(chan []Chapter, pageCount)
-
-			go getExtraChapters(pageCount, r, comicName, chapterChannels)
-
-			for i := range chapterChannels {
-				chapters = append(chapters, i...)
-			}
-		}
-	case readcomicsURLParam:
-		doc.Find(".chapters").Children().Each(func(index int, item *goquery.Selection) {
-			chapter := Chapter{}
-			obj := item.Find("a")
-			chapter.Link, _ = obj.Attr("href")
-			chapter.ChapterName = obj.Text()
-			chapter.ReleaseDate = strings.TrimSpace(item.Find(".date-chapter-title-rtl").Text())
-			chapters = append(chapters, chapter)
-		})
-
-	default:
-		log.Println("No or incorrcect URL param.")
-		return
-	}
+	chapters := utils.GetChapters(doc, r, choice, comicName)
 
 	w.Header().Set("Content-Type", "application/json")
 	res, _ := json.Marshal(chapters)
 	w.Write(res)
-}
-
-func getExtraChapters(extras int, r *http.Request, comicName string, cc chan []Chapter) {
-	for i := 2; i <= extras; i++ {
-
-		var (
-			doc         *goquery.Document
-			err, docErr error
-			resp        *http.Response
-		)
-		url := COMICEXTRA + "comic/" + comicName + "/" + strconv.Itoa(i)
-
-		if appengine.IsDevAppServer() {
-			c := appengine.NewContext(r)
-			client := urlfetch.Client(c)
-			resp, err = client.Get(url)
-			doc, docErr = goquery.NewDocumentFromResponse(resp)
-		} else {
-			resp, err = http.Get(url)
-			doc, docErr = goquery.NewDocumentFromResponse(resp)
-		}
-
-		if err != nil {
-			log.Printf(err.Error())
-			return
-		}
-
-		if resp.StatusCode != 200 {
-			log.Printf(resp.Status)
-			return
-		}
-
-		if docErr != nil {
-			log.Printf(docErr.Error())
-			return
-		}
-
-		defer resp.Body.Close()
-
-		var chapters []Chapter
-		doc.Find("#list").Children().Each(func(index int, item *goquery.Selection) {
-			chapter := Chapter{}
-			obj := item.Find("a")
-			chapter.Link, _ = obj.Attr("href")
-			chapter.ChapterName = obj.Text()
-			chapter.ReleaseDate = item.Find("td").Last().Text()
-			chapters = append(chapters, chapter)
-
-		})
-
-		cc <- chapters
-	}
-	close(cc)
 }
 
 //Request Format -> /read-comic/{Comic Name}/{Chapter Number}?url={param}
@@ -204,7 +105,7 @@ func readComic(w http.ResponseWriter, r *http.Request) {
 	paths := strings.Split(path, "/")
 	comicName, chapterNumber := paths[0], paths[1]
 	//TODO: check how split returns resutls
-	if len(paths) < 2 {
+	if len(paths) != 2 {
 		// errorHandler(w, r, http.StatusBadRequest,err)
 		return
 	}
@@ -215,11 +116,13 @@ func readComic(w http.ResponseWriter, r *http.Request) {
 		utils.ErrorHandler(w, http.StatusBadRequest, err)
 		return
 	}
+
 	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
 		utils.ErrorHandler(w, http.StatusBadRequest, err)
 		return
 	}
+	urls := util.GetChapterImages(doc, r, choice, url)
 	var urls []string
 
 	switch choice {

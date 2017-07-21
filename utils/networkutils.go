@@ -11,16 +11,18 @@ import (
 	"google.golang.org/appengine/urlfetch"
 )
 
+// RequestError  error for when the provided param doesn't match
 type RequestError struct {
 	ProvidedParam string
 }
 
+//ResponseError error for when there is a response but not a 200
 type ResponseError struct {
 	ResponseCode int
 }
 
 func (e *RequestError) Error() string {
-	return fmt.Sprintf("Provided Param( %s ) does not match any options.",
+	return fmt.Sprintf("Provided Param( '%s' ) does not match any options.",
 		e.ProvidedParam)
 }
 
@@ -28,10 +30,12 @@ func (e *ResponseError) Error() string {
 	return fmt.Sprintf("Error Response code: %d", e.ResponseCode)
 }
 
+//ErrorHandler function to write all errors to the page
 func ErrorHandler(w http.ResponseWriter, status int, err error) {
 	http.Error(w, err.Error(), status)
 }
 
+//CreateAllComicsURL function to create the URL for each source
 func CreateAllComicsURL(urlParam string) (string, error) {
 	switch urlParam {
 	case workers.ComicExtraURLParam:
@@ -79,6 +83,7 @@ func CreateReadComicURL(urlParam string, comicName string, chapterNumber string)
 	}
 }
 
+//GetGoQueryDoc Helper method to return the html body to parse
 func GetGoQueryDoc(url string, r *http.Request) (*goquery.Document, error) {
 
 	var (
@@ -115,6 +120,7 @@ func GetGoQueryDoc(url string, r *http.Request) (*goquery.Document, error) {
 	return doc, nil
 }
 
+//TODO: Add err returns to all Get methods
 func GetAllComics(doc *goquery.Document, param string) []model.Comic {
 	switch param {
 	case workers.ComicExtraURLParam:
@@ -132,6 +138,28 @@ func GetPopularComics(doc *goquery.Document, param string) []model.PopularComic 
 		return workers.GetPopularComicsComicExtra(doc)
 	case workers.ReadComicsURLParam:
 		return workers.GetPopularComicsReadComics(doc)
+	default:
+		return nil
+	}
+}
+
+func GetChapters(doc *goquery.Document, r *http.Request, param string, comicName string) []model.Chapter {
+	switch param {
+	case workers.ComicExtraURLParam:
+		return workers.GetChaptersComicExtra(doc, r, comicName)
+	case workers.ReadComicsURLParam:
+		return workers.GetChaptersReadComics(doc)
+	default:
+		return nil
+	}
+}
+
+func GetChapterImages(doc *goquery.Document, r *http.Request, param string, url string) []string {
+	switch param {
+	case workers.ComicExtraURLParam:
+
+	case workers.ReadComicsURLParam:
+
 	default:
 		return nil
 	}

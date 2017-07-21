@@ -49,3 +49,17 @@ func GetPopularComicsReadComics(doc *goquery.Document) []model.PopularComic {
 	})
 	return comics
 }
+
+func GetChaptersReadComics(doc *goquery.Document) []model.Chapter {
+	var chapters []model.Chapter
+	doc.Find(".chapters").Children().Each(func(index int, item *goquery.Selection) {
+		chapter := model.Chapter{}
+		obj := item.Find("a")
+		chapter.Link, _ = obj.Attr("href")
+		chapter.ChapterName = obj.Text()
+		chapter.ReleaseDate = strings.TrimSpace(item.Find(".date-chapter-title-rtl").Text())
+		chapters = append(chapters, chapter)
+	})
+
+	return chapters
+}

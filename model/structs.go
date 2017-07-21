@@ -12,3 +12,9 @@ type PopularComic struct {
 	Img        string `json:"img"`
 	IssueCount int    `json:"issueCount"`
 }
+
+type Chapter struct {
+	ChapterName string `json:"chapterName"`
+	Link        string `json:"link"`
+	ReleaseDate string `json:"releaseDate"`
+}
