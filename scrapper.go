@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"scrapper/comicutils"
+	"scrapper/model"
+	"scrapper/utils"
 	"strconv"
 	"strings"
-
-	"scrapper/utils"
 
 	"github.com/PuerkitoBio/goquery"
 	"google.golang.org/appengine"
@@ -26,20 +27,20 @@ const readcomicsURLParam = "rcw"
 func allComicsRequest(w http.ResponseWriter, r *http.Request) {
 
 	param := r.URL.Query().Get("url")
-	url, formatErr := utils.CreateAllComicsURL(param)
+	url, formatErr := comicutils.CreateAllComicsURL(param)
 
 	if formatErr != nil {
-		utils.ErrorHandler(w, http.StatusBadRequest, formatErr)
+		model.ErrorHandler(w, http.StatusBadRequest, formatErr)
 		return
 	}
 
 	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
-		utils.ErrorHandler(w, http.StatusBadRequest, err)
+		model.ErrorHandler(w, http.StatusBadRequest, err)
 		return
 	}
 
-	comicList := utils.GetAllComics(doc, param)
+	comicList := comicutils.GetAllComics(doc, param)
 
 	w.Header().Set("Content-Type", "application/json")
 	res, _ := json.Marshal(comicList)
@@ -56,7 +57,7 @@ func getPopularComics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	choice := r.URL.Query().Get("url")
-	url, err := utils.CreatePopularComicsURL(choice, pageNumber)
+	url, err := comicutils.CreatePopularComicsURL(choice, pageNumber)
 	if err != nil {
 		return
 	}
@@ -66,7 +67,7 @@ func getPopularComics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	popularComics := utils.GetPopularComics(doc, choice)
+	popularComics := comicutils.GetPopularComics(doc, choice)
 
 	w.Header().Set("Content-Type", "application/json")
 	res, _ := json.Marshal(popularComics)
@@ -81,17 +82,17 @@ func getChapters(w http.ResponseWriter, r *http.Request) {
 	comicName := r.URL.Path[len("/chapter-list/"):]
 
 	choice := r.URL.Query().Get("url")
-	url, err := utils.CreateChapterURL(choice, comicName)
+	url, err := comicutils.CreateChapterURL(choice, comicName)
 	if err != nil {
 		return
 	}
 
 	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
-		utils.ErrorHandler(w, http.StatusBadRequest, err)
+		model.ErrorHandler(w, http.StatusBadRequest, err)
 	}
 
-	chapters := utils.GetChapters(doc, r, choice, comicName)
+	chapters := comicutils.GetChapters(doc, r, choice, comicName)
 
 	w.Header().Set("Content-Type", "application/json")
 	res, _ := json.Marshal(chapters)
@@ -111,19 +112,18 @@ func readComic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	choice := r.URL.Query().Get("url")
-	url, err := utils.CreateReadComicURL(choice, comicName, chapterNumber)
+	url, err := comicutils.CreateReadComicURL(choice, comicName, chapterNumber)
 	if err != nil {
-		utils.ErrorHandler(w, http.StatusBadRequest, err)
+		model.ErrorHandler(w, http.StatusBadRequest, err)
 		return
 	}
 
 	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
-		utils.ErrorHandler(w, http.StatusBadRequest, err)
+		model.ErrorHandler(w, http.StatusBadRequest, err)
 		return
 	}
-	urls := util.GetChapterImages(doc, r, choice, url)
-	var urls []string
+	urls := comicutils.GetChapterImages(doc, r, choice, url)
 
 	switch choice {
 	case comicExtraURLParam:
@@ -170,7 +170,7 @@ func getSearchCategories(w http.ResponseWriter, r *http.Request) {
 
 	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
-		utils.ErrorHandler(w, http.StatusBadRequest, err)
+		model.ErrorHandler(w, http.StatusBadRequest, err)
 	}
 
 	doc.Find(".search-checks").ChildrenFiltered("li").Each(func(index int, item *goquery.Selection) {
@@ -220,7 +220,7 @@ func performAdvancedSearch(w http.ResponseWriter, r *http.Request) {
 
 	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
-		utils.ErrorHandler(w, http.StatusBadRequest, err)
+		model.ErrorHandler(w, http.StatusBadRequest, err)
 	}
 
 	doc.Find(".manga-box").Each(func(index int, item *goquery.Selection) {
@@ -297,7 +297,7 @@ func getDescription(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//Add a query param for which url to use
+//TODO:Add a query param for which url to use
 func main() {
 
 	http.HandleFunc("/comic-list-AZ", allComicsRequest)

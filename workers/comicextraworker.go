@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"scrapper/model"
+	"scrapper/utils"
 	"strconv"
 	"strings"
 
@@ -13,8 +14,10 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const ComicExtraURL = "http://www.comicextra.com/"
-const ComicExtraURLParam = "ce"
+const (
+	ComicExtraURL      = "http://www.comicextra.com/"
+	ComicExtraURLParam = "ce"
+)
 
 func GetAllComicsComicExtra(doc *goquery.Document) []model.Comic {
 	var comics []model.Comic
@@ -135,10 +138,26 @@ func getExtraChapters(extras int, r *http.Request, comicName string, cc chan []m
 func GetChapterImagesComicExtra(doc *goquery.Document, r *http.Request, url string) []string {
 	numOfPages := doc.Find(".full-select").First().Children().Length()
 	pagesChannels := make(chan string, numOfPages)
+	urls := make([]string, 0)
 
 	go getComicImageURL(url, r, numOfPages, pagesChannels)
 
 	for i := range pagesChannels {
 		urls = append(urls, i)
 	}
+	return urls
+}
+
+func getComicImageURL(url string, r *http.Request, numOfPages int, cc chan string) {
+	for i := 1; i <= numOfPages; i++ {
+		pageURL := url + "/" + strconv.Itoa(i)
+
+		doc, err := utils.GetGoQueryDoc(pageURL, r)
+		if err != nil {
+			return
+		}
+		link, _ := doc.Find("#main_img").Attr("src")
+		cc <- link
+	}
+	close(cc)
 }

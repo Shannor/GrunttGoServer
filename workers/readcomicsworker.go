@@ -8,8 +8,10 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-const ReadComicsURL = "http://readcomics.website/"
-const ReadComicsURLParam = "rcw"
+const (
+	ReadComicsURL      = "http://readcomics.website/"
+	ReadComicsURLParam = "rcw"
+)
 
 func GetAllComicsReadComics(doc *goquery.Document) []model.Comic {
 	var comics []model.Comic
