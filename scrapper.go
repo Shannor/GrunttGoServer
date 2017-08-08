@@ -13,7 +13,7 @@ import (
 )
 
 // Base String for url
-const baseURL = "http://www.readcomics.tv/"
+const baseURL = "http://www.comicextra.com/"
 
 func errorHandler(w http.ResponseWriter, r *http.Request, status int, err error) {
 	http.Error(w, err.Error() , status)
