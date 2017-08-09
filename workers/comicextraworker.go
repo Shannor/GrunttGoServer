@@ -1,28 +1,61 @@
 package workers
 
 import (
-	"log"
-	"net/http"
-	"scrapper/model"
-	"scrapper/utils"
 	"strconv"
 	"strings"
-
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/urlfetch"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-const (
-	ComicExtraURL      = "http://www.comicextra.com/"
-	ComicExtraURLParam = "ce"
-)
+//
+// import (
+// 	"log"
+// 	"net/http"
+// 	"scrapper/utils"
+// 	"strconv"
+// 	"strings"
+//
+// 	"google.golang.org/appengine"
+// 	"google.golang.org/appengine/urlfetch"
+//
+// 	"github.com/PuerkitoBio/goquery"
+// )
+//
+// const (
+// 	ComicExtraURL      = "http://www.comicextra.com/"
+// 	ComicExtraURLParam = "ce"
+// )
 
-func GetAllComicsComicExtra(doc *goquery.Document) []model.Comic {
-	var comics []model.Comic
+func (ce *ComicExtra) MatchesTag(tag string) bool {
+	if tag == ce.Tag {
+		return true
+	}
+	return false
+}
+func (ce *ComicExtra) CreateAllComicsURL() string {
+	return ce.BaseURL + "comic-list"
+}
+
+func (ce *ComicExtra) CreatePopularComicsURL(pageNumber int) string {
+	return ce.BaseURL + "popular-comic/" + strconv.Itoa(pageNumber)
+}
+
+func (ce *ComicExtra) CreateComicChapterListURL(comicName string) string {
+	return ce.BaseURL + "comic/" + comicName
+}
+
+func (ce *ComicExtra) CreateChapterPagesURL(comicName string, chapterNumber int) string {
+	return ce.BaseURL + comicName + "/chapter-" + strconv.Itoa(chapterNumber)
+}
+
+func (ce *ComicExtra) CreateComicDescriptionURL(comicName string) string {
+	return ce.BaseURL + "comic/" + comicName
+}
+
+func (ce *ComicExtra) GetAllComics(doc *goquery.Document) (Comics, error) {
+	var comics Comics
 	doc.Find(".series-col li").Each(func(index int, item *goquery.Selection) {
-		comic := model.Comic{}
+		comic := Comic{}
 		aTag := item.Children()
 		comic.Title = aTag.Text()
 		comic.Link, _ = aTag.Attr("href")
@@ -34,13 +67,13 @@ func GetAllComicsComicExtra(doc *goquery.Document) []model.Comic {
 
 		comics = append(comics, comic)
 	})
-	return comics
+	return comics, nil
 }
 
-func GetPopularComicsComicExtra(doc *goquery.Document) []model.PopularComic {
-	var comics []model.PopularComic
+func (ce *ComicExtra) GetPopularComics(doc *goquery.Document) (PopularComics, error) {
+	var comics PopularComics
 	doc.Find(".cartoon-box").Each(func(index int, item *goquery.Selection) {
-		comic := model.PopularComic{}
+		comic := PopularComic{}
 		//Gets top level information
 		comic.Title = item.Find("h3").Children().Text()
 		comic.Link, _ = item.Find("h3").Children().Attr("href")
@@ -54,110 +87,111 @@ func GetPopularComicsComicExtra(doc *goquery.Document) []model.PopularComic {
 
 		comics = append(comics, comic)
 	})
-	return comics
+	return comics, nil
 }
 
-func GetChaptersComicExtra(doc *goquery.Document, r *http.Request, comicName string) []model.Chapter {
-	var chapters []model.Chapter
-	doc.Find("#list").Children().Each(func(index int, item *goquery.Selection) {
-		chapter := model.Chapter{}
-		obj := item.Find("a")
-		chapter.Link, _ = obj.Attr("href")
-		chapter.ChapterName = obj.Text()
-		chapter.ReleaseDate = item.Find("td").Last().Text()
-		chapters = append(chapters, chapter)
-	})
-
-	pageCount := doc.Find(".general-nav").Children().Length() - 1
-
-	if pageCount > 0 {
-		chapterChannels := make(chan []model.Chapter, pageCount)
-
-		go getExtraChapters(pageCount, r, comicName, chapterChannels)
-
-		for i := range chapterChannels {
-			chapters = append(chapters, i...)
-		}
-	}
-	return chapters
-}
-
-func getExtraChapters(extras int, r *http.Request, comicName string, cc chan []model.Chapter) {
-	for i := 2; i <= extras; i++ {
-
-		var (
-			doc         *goquery.Document
-			err, docErr error
-			resp        *http.Response
-		)
-		url := ComicExtraURL + "comic/" + comicName + "/" + strconv.Itoa(i)
-
-		if appengine.IsDevAppServer() {
-			c := appengine.NewContext(r)
-			client := urlfetch.Client(c)
-			resp, err = client.Get(url)
-			doc, docErr = goquery.NewDocumentFromResponse(resp)
-		} else {
-			resp, err = http.Get(url)
-			doc, docErr = goquery.NewDocumentFromResponse(resp)
-		}
-
-		if err != nil {
-			log.Printf(err.Error())
-			return
-		}
-
-		if resp.StatusCode != 200 {
-			log.Printf(resp.Status)
-			return
-		}
-
-		if docErr != nil {
-			log.Printf(docErr.Error())
-			return
-		}
-
-		defer resp.Body.Close()
-
-		var chapters []model.Chapter
-		doc.Find("#list").Children().Each(func(index int, item *goquery.Selection) {
-			chapter := model.Chapter{}
-			obj := item.Find("a")
-			chapter.Link, _ = obj.Attr("href")
-			chapter.ChapterName = obj.Text()
-			chapter.ReleaseDate = item.Find("td").Last().Text()
-			chapters = append(chapters, chapter)
-
-		})
-
-		cc <- chapters
-	}
-	close(cc)
-}
-
-func GetChapterImagesComicExtra(doc *goquery.Document, r *http.Request, url string) []string {
-	numOfPages := doc.Find(".full-select").First().Children().Length()
-	pagesChannels := make(chan string, numOfPages)
-	urls := make([]string, 0)
-
-	go getComicImageURL(url, r, numOfPages, pagesChannels)
-
-	for i := range pagesChannels {
-		urls = append(urls, i)
-	}
-	return urls
-}
-
-func getComicImageURL(url string, r *http.Request, numOfPages int, cc chan string) {
-	for i := 1; i <= numOfPages; i++ {
-		pageURL := url + "/" + strconv.Itoa(i)
-
-		doc, err := utils.GetGoQueryDoc(pageURL, r)
-		if err != nil {
-			return
-		}
-		link, _ := doc.Find("#main_img").Attr("src")
-		cc <- link
-	}
-	close(cc)
-}
+//
+// func GetChaptersComicExtra(doc *goquery.Document, r *http.Request, comicName string) []Chapter {
+// 	var chapters []Chapter
+// 	doc.Find("#list").Children().Each(func(index int, item *goquery.Selection) {
+// 		chapter := Chapter{}
+// 		obj := item.Find("a")
+// 		chapter.Link, _ = obj.Attr("href")
+// 		chapter.ChapterName = obj.Text()
+// 		chapter.ReleaseDate = item.Find("td").Last().Text()
+// 		chapters = append(chapters, chapter)
+// 	})
+//
+// 	pageCount := doc.Find(".general-nav").Children().Length() - 1
+//
+// 	if pageCount > 0 {
+// 		chapterChannels := make(chan []Chapter, pageCount)
+//
+// 		go getExtraChapters(pageCount, r, comicName, chapterChannels)
+//
+// 		for i := range chapterChannels {
+// 			chapters = append(chapters, i...)
+// 		}
+// 	}
+// 	return chapters
+// }
+//
+// func getExtraChapters(extras int, r *http.Request, comicName string, cc chan []Chapter) {
+// 	for i := 2; i <= extras; i++ {
+//
+// 		var (
+// 			doc         *goquery.Document
+// 			err, docErr error
+// 			resp        *http.Response
+// 		)
+// 		url := ComicExtraURL + "comic/" + comicName + "/" + strconv.Itoa(i)
+//
+// 		if appengine.IsDevAppServer() {
+// 			c := appengine.NewContext(r)
+// 			client := urlfetch.Client(c)
+// 			resp, err = client.Get(url)
+// 			doc, docErr = goquery.NewDocumentFromResponse(resp)
+// 		} else {
+// 			resp, err = http.Get(url)
+// 			doc, docErr = goquery.NewDocumentFromResponse(resp)
+// 		}
+//
+// 		if err != nil {
+// 			log.Printf(err.Error())
+// 			return
+// 		}
+//
+// 		if resp.StatusCode != 200 {
+// 			log.Printf(resp.Status)
+// 			return
+// 		}
+//
+// 		if docErr != nil {
+// 			log.Printf(docErr.Error())
+// 			return
+// 		}
+//
+// 		defer resp.Body.Close()
+//
+// 		var chapters []Chapter
+// 		doc.Find("#list").Children().Each(func(index int, item *goquery.Selection) {
+// 			chapter := Chapter{}
+// 			obj := item.Find("a")
+// 			chapter.Link, _ = obj.Attr("href")
+// 			chapter.ChapterName = obj.Text()
+// 			chapter.ReleaseDate = item.Find("td").Last().Text()
+// 			chapters = append(chapters, chapter)
+//
+// 		})
+//
+// 		cc <- chapters
+// 	}
+// 	close(cc)
+// }
+//
+// func GetChapterImagesComicExtra(doc *goquery.Document, r *http.Request, url string) []string {
+// 	numOfPages := doc.Find(".full-select").First().Children().Length()
+// 	pagesChannels := make(chan string, numOfPages)
+// 	urls := make([]string, 0)
+//
+// 	go getComicImageURL(url, r, numOfPages, pagesChannels)
+//
+// 	for i := range pagesChannels {
+// 		urls = append(urls, i)
+// 	}
+// 	return urls
+// }
+//
+// func getComicImageURL(url string, r *http.Request, numOfPages int, cc chan string) {
+// 	for i := 1; i <= numOfPages; i++ {
+// 		pageURL := url + "/" + strconv.Itoa(i)
+//
+// 		doc, err := utils.GetGoQueryDoc(pageURL, r)
+// 		if err != nil {
+// 			return
+// 		}
+// 		link, _ := doc.Find("#main_img").Attr("src")
+// 		cc <- link
+// 	}
+// 	close(cc)
+// }

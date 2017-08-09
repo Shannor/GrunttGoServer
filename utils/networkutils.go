@@ -1,8 +1,8 @@
 package utils
 
 import (
+	"fmt"
 	"net/http"
-	"scrapper/model"
 
 	"github.com/PuerkitoBio/goquery"
 	"google.golang.org/appengine"
@@ -36,7 +36,7 @@ func GetGoQueryDoc(url string, r *http.Request) (*goquery.Document, error) {
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, &model.ResponseError{resp.StatusCode}
+		return nil, fmt.Errorf("Some error")
 	}
 
 	if docErr != nil {
