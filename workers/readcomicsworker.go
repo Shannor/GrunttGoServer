@@ -7,18 +7,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-//
-// import (
-// 	"strconv"
-// 	"strings"
-//
-// 	"github.com/PuerkitoBio/goquery"
-// )
-//
-// const (
-// 	ReadComicsURL      = "http://readcomics.website/"
-// 	ReadComicsURLParam = "rcw"
-// )
 func (rcw *ReadComics) MatchesTag(tag string) bool {
 	if tag == rcw.Tag {
 		return true

@@ -7,51 +7,40 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-//
-// import (
-// 	"log"
-// 	"net/http"
-// 	"scrapper/utils"
-// 	"strconv"
-// 	"strings"
-//
-// 	"google.golang.org/appengine"
-// 	"google.golang.org/appengine/urlfetch"
-//
-// 	"github.com/PuerkitoBio/goquery"
-// )
-//
-// const (
-// 	ComicExtraURL      = "http://www.comicextra.com/"
-// 	ComicExtraURLParam = "ce"
-// )
-
+//MatchesTag bool check to see if provided tag matches this struct
 func (ce *ComicExtra) MatchesTag(tag string) bool {
 	if tag == ce.Tag {
 		return true
 	}
 	return false
 }
+
+//CreateAllComicsURL makes the url for ComicExtra's All comics page
 func (ce *ComicExtra) CreateAllComicsURL() string {
 	return ce.BaseURL + "comic-list"
 }
 
+//CreatePopularComicsURL makes the url for ComicExtra's Popular comics page
 func (ce *ComicExtra) CreatePopularComicsURL(pageNumber int) string {
 	return ce.BaseURL + "popular-comic/" + strconv.Itoa(pageNumber)
 }
 
+//CreateComicChapterListURL makes the url for ComicExtra's Chapter list page
 func (ce *ComicExtra) CreateComicChapterListURL(comicName string) string {
 	return ce.BaseURL + "comic/" + comicName
 }
 
+//CreateChapterPagesURL makes the url for ComicExtra's chapter pages
 func (ce *ComicExtra) CreateChapterPagesURL(comicName string, chapterNumber int) string {
 	return ce.BaseURL + comicName + "/chapter-" + strconv.Itoa(chapterNumber)
 }
 
+//CreateComicDescriptionURL makes the url for ComicExtra's Description comic page
 func (ce *ComicExtra) CreateComicDescriptionURL(comicName string) string {
 	return ce.BaseURL + "comic/" + comicName
 }
 
+//GetAllComics performs the webcrawling to return all comics on the site
 func (ce *ComicExtra) GetAllComics(doc *goquery.Document) (Comics, error) {
 	var comics Comics
 	doc.Find(".series-col li").Each(func(index int, item *goquery.Selection) {
@@ -70,6 +59,7 @@ func (ce *ComicExtra) GetAllComics(doc *goquery.Document) (Comics, error) {
 	return comics, nil
 }
 
+//GetPopularComics returns all the popular comics from ComicExtra website
 func (ce *ComicExtra) GetPopularComics(doc *goquery.Document) (PopularComics, error) {
 	var comics PopularComics
 	doc.Find(".cartoon-box").Each(func(index int, item *goquery.Selection) {
