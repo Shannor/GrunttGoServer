@@ -7,12 +7,9 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-//MatchesTag bool check to see if provided tag matches this struct
-func (ce *ComicExtra) MatchesTag(tag string) bool {
-	if tag == ce.Tag {
-		return true
-	}
-	return false
+//GetTag bool check to see if provided tag matches this struct
+func (ce *ComicExtra) GetTag() string {
+	return ce.Tag
 }
 
 //CreateAllComicsURL makes the url for ComicExtra's All comics page

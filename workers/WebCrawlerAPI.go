@@ -4,8 +4,8 @@ import "github.com/PuerkitoBio/goquery"
 
 //Webcrawler Interface for all services that must be implemented
 type Webcrawler interface {
+	GetTag() string
 	CreateAllComicsURL() string
-	MatchesTag(string) bool
 	CreatePopularComicsURL(int) string
 	CreateComicChapterListURL(string) string
 	CreateChapterPagesURL(string, int) string

@@ -1,6 +1,13 @@
-package main
+package server
 
-import "google.golang.org/appengine"
+import (
+	"fmt"
+	"net/http"
+	"scrapper/model"
+	"scrapper/workers"
+
+	"github.com/julienschmidt/httprouter"
+)
 
 //Request format -> /chapter-list/{chpater Name}?source={website}
 // func allComicsRequest(w http.ResponseWriter, r *http.Request) {
@@ -276,8 +283,7 @@ import "google.golang.org/appengine"
 //
 // }
 
-//TODO:Add a query param for which url to use
-func main() {
+func init() {
 	//
 	// http.HandleFunc("/comic-list-AZ", allComicsRequest)
 	// http.HandleFunc("/popular-comics/", getPopularComics)
@@ -290,7 +296,14 @@ func main() {
 	// 	fmt.Fprintf(w, "Hello fellow, Gruntt User!")
 	// 	return
 	// })
-	// http.ListenAndServe(":8000", nil)
-	appengine.Main()
+	ce := workers.GetComicExtraInstance()
+	rcw := workers.GetReadComicsInstance()
+	api := model.GetAPIInstance(ce, rcw)
+	router := httprouter.New()
 
+	router.GET("/", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+		fmt.Fprint(w, "Welcome to Gruntt-Comics Backend\n")
+	})
+	router.GET("/all-comics", api.GetAllComics())
+	http.Handle("/", router)
 }

@@ -7,11 +7,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func (rcw *ReadComics) MatchesTag(tag string) bool {
-	if tag == rcw.Tag {
-		return true
-	}
-	return false
+func (rcw *ReadComics) GetTag() string {
+	return rcw.Tag
 }
 
 func (rcw *ReadComics) CreateAllComicsURL() string {
