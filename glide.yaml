@@ -8,3 +8,9 @@ import:
   version: ^1.0.0
   subpackages:
   - urlfetch
+- package: github.com/onsi/ginkgo
+  version: ^1.4.0
+  subpackages:
+  - ginkgo
+- package: github.com/onsi/gomega
+  version: ^1.2.0

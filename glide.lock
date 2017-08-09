@@ -1,5 +1,5 @@
-hash: 4bd59132f4c60dac8343a2a25e7d7dd36f074aeec55d3b6f63bccda6284c4238
-updated: 2017-08-09T01:47:01.464826683-04:00
+hash: 10eb7ef3c1b1ed28aad1c46572db3ca6429ad6644b73c9a75a4d76fe75e08d46
+updated: 2017-08-09T01:56:25.752648749-04:00
 imports:
 - name: github.com/andybalholm/cascadia
   version: 349dd0209470eabd9514242c688c403c0926d266
@@ -9,6 +9,12 @@ imports:
   - proto
 - name: github.com/julienschmidt/httprouter
   version: 8c199fb6259ffc1af525cc3ad52ee60ba8359669
+- name: github.com/onsi/ginkgo
+  version: 9eda700730cba42af70d53180f9dcce9266bc2bc
+  subpackages:
+  - ginkgo
+- name: github.com/onsi/gomega
+  version: c893efa28eb45626cdaa76c9f653b62488858837
 - name: github.com/PuerkitoBio/goquery
   version: e1271ee34c6a305e38566ecd27ae374944907ee9
 - name: golang.org/x/net
