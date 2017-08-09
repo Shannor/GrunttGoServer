@@ -1,6 +1,10 @@
 package workers
 
-import "github.com/PuerkitoBio/goquery"
+import (
+	"net/http"
+
+	"github.com/PuerkitoBio/goquery"
+)
 
 //Webcrawler Interface for all services that must be implemented
 type Webcrawler interface {
@@ -13,7 +17,8 @@ type Webcrawler interface {
 	// CreateSearchURL() (string, error)
 	GetAllComics(*goquery.Document) (Comics, error)
 	GetPopularComics(*goquery.Document) (PopularComics, error)
-	// GetComicChapterList(*goquery.Document, string) (Chapters, error)
+	GetComicChapterListPageAmount(*goquery.Document) (int, error)
+	GetComicChapterList(string, int, *http.Request) (Chapters, error)
 	// GetChapterPages(*goquery.Document, string, int) ([]string, error)
 	// GetSearchCategories() ([]string, error)
 	// GetComicDescription() error

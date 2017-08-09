@@ -305,5 +305,6 @@ func init() {
 		fmt.Fprint(w, "Welcome to Gruntt-Comics Backend\n")
 	})
 	router.GET("/all-comics", api.GetAllComics())
+	router.GET("popular-comics/:pageNumber", api.GetPopularComics())
 	http.Handle("/", router)
 }

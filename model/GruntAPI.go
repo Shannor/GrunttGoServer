@@ -10,9 +10,9 @@ import (
 type GrunttAPI interface {
 	GetWebcrawler(string) (workers.Webcrawler, error)
 	GetAllComics() httprouter.Handle
-	// GetPopularComics() httprouter.Handle
-	// GetComicDescription() httprouter.Handle
+	GetPopularComics() httprouter.Handle
 	// GetComicChapterList() httprouter.Handle
+	// GetComicDescription() httprouter.Handle
 	// GetChapterPages() httprouter.Handle
 	// GetSearchCategories() httprouter.Handle
 	// Search() httprouter.Handle
