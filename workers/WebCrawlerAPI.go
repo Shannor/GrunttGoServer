@@ -10,18 +10,18 @@ import (
 type Webcrawler interface {
 	GetTag() string
 	CreateAllComicsURL() string
-	CreatePopularComicsURL(int) string
-	CreateComicChapterListURL(string) string
-	CreateChapterPagesURL(string, int) string
-	CreateComicDescriptionURL(string) string
+	CreatePopularComicsURL(page int) string
+	CreateComicChapterListURL(comicName string) string
+	CreateChapterPagesURL(comicName string, chapterNumber int) string
+	CreateComicDescriptionURL(comicName string) string
 	// CreateSearchURL() (string, error)
-	GetAllComics(*goquery.Document) (Comics, error)
-	GetPopularComics(*goquery.Document) (PopularComics, error)
-	GetComicChapterListPageAmount(*goquery.Document) int
-	GetComicChapterList(string, int, *http.Request) (Chapters, error)
-	GetNumberOfPages(*goquery.Document) int
-	GetChapterPages(string, int, int, *http.Request) ([]string, error)
-	GetComicImageURL(string, int, *http.Request, chan string)
+	GetAllComics(doc *goquery.Document) (Comics, error)
+	GetPopularComics(doc *goquery.Document) (PopularComics, error)
+	GetComicChapterListPageAmount(doc *goquery.Document) int
+	GetComicChapterList(comicName string, numOfPages int, r *http.Request) (Chapters, error)
+	GetNumberOfPages(doc *goquery.Document) int
+	GetChapterPages(comicName string, chapterNumber int, numOfPages int, r *http.Request) ([]string, error)
+	GetComicImageURL(url string, numOfPages int, r *http.Request, pagesChan chan string)
 	// GetSearchCategories() ([]string, error)
 	// GetComicDescription() error
 	// Search(*goquery.Document) (SearchResults, error)

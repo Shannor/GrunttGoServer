@@ -81,7 +81,13 @@ func (ce *ComicExtra) GetPopularComics(doc *goquery.Document) (PopularComics, er
 
 //GetComicChapterListPageAmount returns the number of pages the chapter list spans
 func (ce *ComicExtra) GetComicChapterListPageAmount(doc *goquery.Document) int {
-	return doc.Find(".general-nav").Children().Length() - 1
+	numOfPages := doc.Find(".general-nav").Children().Length()
+	if numOfPages > 0 {
+		numOfPages--
+	} else {
+		numOfPages = 1
+	}
+	return numOfPages
 }
 
 type chaptersResult struct {

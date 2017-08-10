@@ -8,10 +8,10 @@ import (
 
 //GrunttAPI API for the RESTful calls
 type GrunttAPI interface {
-	GetWebcrawler(string) (workers.Webcrawler, error)
+	GetWebcrawler(source string) (workers.Webcrawler, error)
 	GetAllComics() httprouter.Handle
 	GetPopularComics() httprouter.Handle
-	// GetComicChapterList() httprouter.Handle
+	GetComicChapterList() httprouter.Handle
 	// GetComicDescription() httprouter.Handle
 	// GetChapterPages() httprouter.Handle
 	// GetSearchCategories() httprouter.Handle
