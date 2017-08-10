@@ -163,3 +163,57 @@ func (api *api) GetComicChapterList() httprouter.Handle {
 		w.Write(body)
 	}
 }
+
+func (api *api) GetChapterPages() httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		source := r.URL.Query().Get("source")
+		comicName := ps.ByName("comicName")
+		chapterNumber := ps.ByName("chapterNumber")
+
+		if source == "" {
+			http.Error(w, "No provided source in url", http.StatusBadRequest)
+			return
+		}
+
+		webcrawler, err := api.GetWebcrawler(source)
+		if err != nil {
+			msg := fmt.Sprintf("No matching webcrawler source for %s", source)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+
+		chapterNum, err := strconv.Atoi(chapterNumber)
+		if err != nil {
+			msg := fmt.Sprintf("Provided chapter number is not a number.")
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+		url := webcrawler.CreateChapterPagesURL(comicName, chapterNum)
+
+		doc, err := utils.GetGoQueryDoc(url, r)
+		if err != nil {
+			msg := fmt.Sprintf("GetChapterPages error. Error: %s", err.Error())
+			http.Error(w, msg, http.StatusInternalServerError)
+			return
+		}
+
+		numOfPages := webcrawler.GetNumberOfPages(doc)
+
+		pages, err := webcrawler.GetChapterPages(comicName, chapterNum, numOfPages, r)
+		if err != nil {
+			msg := fmt.Sprintf("GetChapterPages error. Error: %s", err.Error())
+			http.Error(w, msg, http.StatusInternalServerError)
+			return
+		}
+
+		body, err := json.Marshal(pages)
+		if err != nil {
+			msg := fmt.Sprintf("Error with Marshaling Pages. Error: %s", err.Error())
+			http.Error(w, msg, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(body)
+	}
+}

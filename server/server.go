@@ -221,5 +221,6 @@ func init() {
 	router.GET("/all-comics", api.GetAllComics())
 	router.GET("/popular-comics/:pageNumber", api.GetPopularComics())
 	router.GET("/chapter-list/:comicName", api.GetComicChapterList())
+	router.GET("/chapter-pages/:comicName/:chapterNumber", api.GetChapterPages())
 	http.Handle("/", router)
 }

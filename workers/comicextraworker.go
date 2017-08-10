@@ -134,15 +134,15 @@ func getExtraChapters(pageAmount int, r *http.Request, baseURL string, cc chan C
 
 //GetNumberOfPages method to return the number of pages a chapter has
 func (ce *ComicExtra) GetNumberOfPages(doc *goquery.Document) int {
-	return doc.Find(".full-select").First().Children().Length()
+	return doc.Find(".full-select").Last().Children().Length()
 }
 
 //GetChapterPages method to return the url for all pages
 func (ce *ComicExtra) GetChapterPages(comicName string, chapterNumber int, numOfPages int, r *http.Request) ([]string, error) {
-	baseURL := ce.BaseURL + "comic/" + comicName + "/" + strconv.Itoa(chapterNumber)
+	baseURL := ce.BaseURL + comicName + "/chapter-" + strconv.Itoa(chapterNumber)
 	pagesChannels := make(chan string, numOfPages)
 	var urls []string
-	go ce.GetComicImageURL(baseURL, numOfPages, r, pagesChannels)
+	go ce.getComicImageURL(baseURL, numOfPages, r, pagesChannels)
 
 	for url := range pagesChannels {
 		urls = append(urls, url)
@@ -151,16 +151,16 @@ func (ce *ComicExtra) GetChapterPages(comicName string, chapterNumber int, numOf
 }
 
 //GetComicImageURL go routine to get the urls for the images
-func (ce *ComicExtra) GetComicImageURL(url string, numOfPages int, r *http.Request, cc chan string) {
+func (ce *ComicExtra) getComicImageURL(url string, numOfPages int, r *http.Request, cc chan string) {
 	for i := 1; i <= numOfPages; i++ {
 		pageURL := url + "/" + strconv.Itoa(i)
 
 		doc, err := utils.GetGoQueryDoc(pageURL, r)
 		if err != nil {
-			return
+			cc <- ""
 		}
 		link, _ := doc.Find("#main_img").Attr("src")
-		cc <- link
+		cc <- strings.TrimSpace(link)
 	}
 	close(cc)
 }
