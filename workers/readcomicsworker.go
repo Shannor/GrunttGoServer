@@ -62,6 +62,7 @@ func (rcw *ReadComics) GetAllComics(doc *goquery.Document) (Comics, error) {
 //GetPopularComics method to return the popluar comics on the website
 func (rcw *ReadComics) GetPopularComics(doc *goquery.Document) (PopularComics, error) {
 	var comics PopularComics
+
 	doc.Find(".media").Each(func(index int, item *goquery.Selection) {
 		comic := PopularComic{}
 		//Gets top level information
@@ -82,14 +83,15 @@ func (rcw *ReadComics) GetPopularComics(doc *goquery.Document) (PopularComics, e
 }
 
 //GetComicChapterListPageAmount returns the max number of chapters pages
-func (rcw *ReadComics) GetComicChapterListPageAmount(doc *goquery.Document) (int, error) {
-	return 1, nil
+func (rcw *ReadComics) GetComicChapterListPageAmount(doc *goquery.Document) int {
+	return 1
 }
 
 //GetComicChapterList Returns all the chapters listed on the page
 func (rcw *ReadComics) GetComicChapterList(comicName string, numOfPages int, r *http.Request) (Chapters, error) {
 	var chapters Chapters
 	url := rcw.BaseURL + "comic/" + comicName
+
 	doc, err := utils.GetGoQueryDoc(url, r)
 	if err != nil {
 		return Chapters{}, fmt.Errorf("GetComicChapterList error. Error: %s", err.Error())
@@ -105,4 +107,37 @@ func (rcw *ReadComics) GetComicChapterList(comicName string, numOfPages int, r *
 	})
 
 	return chapters, nil
+}
+
+//GetNumberOfPages return the number of pages in a chapter
+func (rcw *ReadComics) GetNumberOfPages(doc *goquery.Document) int {
+	return doc.Find(".dropdown-menu.inner.selectpicker").First().Children().Length()
+}
+
+//GetChapterPages return the urls for the pages in a chapter
+func (rcw *ReadComics) GetChapterPages(comicName string, chapterNumber int, numOfPages int, r *http.Request) ([]string, error) {
+	baseURL := rcw.BaseURL + "comic/" + comicName + "/" + strconv.Itoa(chapterNumber)
+	pagesChannels := make(chan string, numOfPages)
+	var urls []string
+	go rcw.GetComicImageURL(baseURL, numOfPages, r, pagesChannels)
+
+	for url := range pagesChannels {
+		urls = append(urls, url)
+	}
+	return urls, nil
+}
+
+//GetComicImageURL go routine to get the acutal urls
+func (rcw *ReadComics) GetComicImageURL(url string, numOfPages int, r *http.Request, cc chan string) {
+	for i := 1; i <= numOfPages; i++ {
+		pageURL := url + "/" + strconv.Itoa(i)
+
+		doc, err := utils.GetGoQueryDoc(pageURL, r)
+		if err != nil {
+			return
+		}
+		link, _ := doc.Find("#ppp").ChildrenFiltered("img").Attr("src")
+		cc <- link
+	}
+	close(cc)
 }

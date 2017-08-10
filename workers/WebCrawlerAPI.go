@@ -17,9 +17,11 @@ type Webcrawler interface {
 	// CreateSearchURL() (string, error)
 	GetAllComics(*goquery.Document) (Comics, error)
 	GetPopularComics(*goquery.Document) (PopularComics, error)
-	GetComicChapterListPageAmount(*goquery.Document) (int, error)
+	GetComicChapterListPageAmount(*goquery.Document) int
 	GetComicChapterList(string, int, *http.Request) (Chapters, error)
-	// GetChapterPages(*goquery.Document, string, int) ([]string, error)
+	GetNumberOfPages(*goquery.Document) int
+	GetChapterPages(string, int, int, *http.Request) ([]string, error)
+	GetComicImageURL(string, int, *http.Request, chan string)
 	// GetSearchCategories() ([]string, error)
 	// GetComicDescription() error
 	// Search(*goquery.Document) (SearchResults, error)

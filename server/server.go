@@ -9,81 +9,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-//Request format -> /chapter-list/{chpater Name}?source={website}
-// func allComicsRequest(w http.ResponseWriter, r *http.Request) {
-//
-// 	param := r.URL.Query().Get("source")
-// 	url, formatErr := comicutils.CreateAllComicsURL(param)
-//
-// 	if formatErr != nil {
-// 		model.ErrorHandler(w, http.StatusBadRequest, formatErr)
-// 		return
-// 	}
-//
-// 	doc, err := utils.GetGoQueryDoc(url, r)
-// 	if err != nil {
-// 		model.ErrorHandler(w, http.StatusBadRequest, err)
-// 		return
-// 	}
-//
-// 	comicList := comicutils.GetAllComics(doc, param)
-//
-// 	w.Header().Set("Content-Type", "application/json")
-// 	res, _ := json.Marshal(comicList)
-// 	w.Write(res)
-// }
-//
-// //Request Format -> /popular-comics?page={pageNumber}&url={website}
-// func getPopularComics(w http.ResponseWriter, r *http.Request) {
-//
-// 	pageNumber := r.URL.Query().Get("page")
-// 	if _, err := strconv.Atoi(pageNumber); err != nil {
-// 		//TODO: Throw wrong formated request type error
-// 		return
-// 	}
-//
-// 	choice := r.URL.Query().Get("url")
-// 	url, err := comicutils.CreatePopularComicsURL(choice, pageNumber)
-// 	if err != nil {
-// 		return
-// 	}
-//
-// 	doc, err := utils.GetGoQueryDoc(url, r)
-// 	if err != nil {
-// 		return
-// 	}
-//
-// 	popularComics := comicutils.GetPopularComics(doc, choice)
-//
-// 	w.Header().Set("Content-Type", "application/json")
-// 	res, _ := json.Marshal(popularComics)
-// 	w.Write(res)
-// }
-//
-// //Chapter : Struct to represent chapters
-//
-// //Request Format -> /chapter-list/{Comic Name}?url={type}
-// func getChapters(w http.ResponseWriter, r *http.Request) {
-//
-// 	comicName := r.URL.Path[len("/chapter-list/"):]
-//
-// 	choice := r.URL.Query().Get("url")
-// 	url, err := comicutils.CreateChapterURL(choice, comicName)
-// 	if err != nil {
-// 		return
-// 	}
-//
-// 	doc, err := utils.GetGoQueryDoc(url, r)
-// 	if err != nil {
-// 		model.ErrorHandler(w, http.StatusBadRequest, err)
-// 	}
-//
-// 	chapters := comicutils.GetChapters(doc, r, choice, comicName)
-//
-// 	w.Header().Set("Content-Type", "application/json")
-// 	res, _ := json.Marshal(chapters)
-// 	w.Write(res)
-// }
 //
 // //Request Format -> /read-comic/{Comic Name}/{Chapter Number}?url={param}
 // func readComic(w http.ResponseWriter, r *http.Request) {
@@ -284,18 +209,7 @@ import (
 // }
 
 func init() {
-	//
-	// http.HandleFunc("/comic-list-AZ", allComicsRequest)
-	// http.HandleFunc("/popular-comics/", getPopularComics)
-	// http.HandleFunc("/chapter-list/", getChapters)
-	// http.HandleFunc("/read-comic/", readComic)
-	// http.HandleFunc("/search-categories", getSearchCategories)
-	// http.HandleFunc("/advanced-search", performAdvancedSearch)
-	// http.HandleFunc("/description", getDescription)
-	// http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-	// 	fmt.Fprintf(w, "Hello fellow, Gruntt User!")
-	// 	return
-	// })
+
 	ce := workers.GetComicExtraInstance()
 	rcw := workers.GetReadComicsInstance()
 	api := model.GetAPIInstance(ce, rcw)
@@ -305,6 +219,6 @@ func init() {
 		fmt.Fprint(w, "Welcome to Gruntt-Comics Backend\n")
 	})
 	router.GET("/all-comics", api.GetAllComics())
-	router.GET("popular-comics/:pageNumber", api.GetPopularComics())
+	router.GET("/popular-comics/:pageNumber", api.GetPopularComics())
 	http.Handle("/", router)
 }
