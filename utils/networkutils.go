@@ -32,15 +32,15 @@ func GetGoQueryDoc(url string, r *http.Request) (*goquery.Document, error) {
 	defer resp.Body.Close()
 
 	if httpErr != nil {
-		return nil, httpErr
+		return nil, fmt.Errorf("GetGoQueryDoc: Http error: %s", httpErr.Error())
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Some error")
+		return nil, fmt.Errorf("GetGoQueryDoc: Response code is %d not 200", resp.StatusCode)
 	}
 
 	if docErr != nil {
-		return nil, docErr
+		return nil, fmt.Errorf("GetGoQueryDoc: Document error: %s", docErr.Error())
 	}
 
 	return doc, nil

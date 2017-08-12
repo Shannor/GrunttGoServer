@@ -142,6 +142,7 @@ func (rcw *ReadComics) getComicImageURL(url string, numOfPages int, r *http.Requ
 	close(cc)
 }
 
+//GetComicDescription function to return the description of the provided comic
 func (rcw *ReadComics) GetComicDescription(doc *goquery.Document) (Description, error) {
 	var description Description
 	description.Name = strings.TrimSpace(doc.Find(".listmanga-header").First().Text())
