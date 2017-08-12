@@ -141,3 +141,26 @@ func (rcw *ReadComics) getComicImageURL(url string, numOfPages int, r *http.Requ
 	}
 	close(cc)
 }
+
+func (rcw *ReadComics) GetComicDescription(doc *goquery.Document) (Description, error) {
+	var description Description
+	description.Name = strings.TrimSpace(doc.Find(".listmanga-header").First().Text())
+	description.Description = strings.TrimSpace(doc.Find(".manga.well").ChildrenFiltered("p").Text())
+	description.LargeImg, _ = doc.Find(".img-responsive").Attr("src")
+
+	doc.Find(".dl-horizontal").Find("dd").Each(func(index int, item *goquery.Selection) {
+		switch index {
+		case 0:
+			description.Genre = strings.TrimSpace(item.Text())
+		case 1:
+			description.Status = strings.TrimSpace(item.Text())
+		case 2:
+			description.AlternateName = strings.TrimSpace(item.Text())
+		case 3:
+			description.Author = strings.TrimSpace(item.Text())
+		case 4:
+			description.ReleaseYear = strings.TrimSpace(item.Text())
+		}
+	})
+	return description, nil
+}

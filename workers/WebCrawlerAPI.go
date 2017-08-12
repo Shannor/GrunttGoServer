@@ -22,8 +22,8 @@ type Webcrawler interface {
 	GetNumberOfPages(doc *goquery.Document) int
 	GetChapterPages(comicName string, chapterNumber int, numOfPages int, r *http.Request) ([]string, error)
 	getComicImageURL(url string, numOfPages int, r *http.Request, pagesChan chan string)
+	GetComicDescription(doc *goquery.Document) (Description, error)
 	// GetSearchCategories() ([]string, error)
-	// GetComicDescription() error
 	// Search(*goquery.Document) (SearchResults, error)
 }
 

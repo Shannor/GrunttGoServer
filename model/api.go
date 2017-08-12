@@ -217,3 +217,49 @@ func (api *api) GetChapterPages() httprouter.Handle {
 		w.Write(body)
 	}
 }
+
+func (api *api) GetComicDescription() httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		source := r.URL.Query().Get("source")
+		comicName := ps.ByName("comicName")
+
+		if source == "" {
+			http.Error(w, "No provided source in url", http.StatusBadRequest)
+			return
+		}
+
+		webcrawler, err := api.GetWebcrawler(source)
+		if err != nil {
+			msg := fmt.Sprintf("No matching webcrawler source for %s", source)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+
+		url := webcrawler.CreateComicDescriptionURL(comicName)
+
+		doc, err := utils.GetGoQueryDoc(url, r)
+		if err != nil {
+			msg := fmt.Sprintf("GetComicDescription error. Error: %s", err.Error())
+			http.Error(w, msg, http.StatusInternalServerError)
+			return
+		}
+
+		description, err := webcrawler.GetComicDescription(doc)
+		if err != nil {
+			msg := fmt.Sprintf("GetChapterPages error. Error: %s", err.Error())
+			http.Error(w, msg, http.StatusInternalServerError)
+			return
+		}
+		description.FormatedName = comicName
+
+		body, err := json.Marshal(description)
+		if err != nil {
+			msg := fmt.Sprintf("Error with Marshaling Description. Error: %s", err.Error())
+			http.Error(w, msg, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(body)
+	}
+}

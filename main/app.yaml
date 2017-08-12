@@ -5,3 +5,6 @@ handlers:
 - url: /.*
   script: _go_app
 
+- url: /admin/.*
+  script: google.appengine.ext.admin.application
+  login: admin

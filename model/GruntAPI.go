@@ -13,7 +13,7 @@ type GrunttAPI interface {
 	GetPopularComics() httprouter.Handle
 	GetComicChapterList() httprouter.Handle
 	GetChapterPages() httprouter.Handle
-	// GetComicDescription() httprouter.Handle
+	GetComicDescription() httprouter.Handle
 	// GetSearchCategories() httprouter.Handle
 	// Search() httprouter.Handle
 }

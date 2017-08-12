@@ -164,3 +164,27 @@ func (ce *ComicExtra) getComicImageURL(url string, numOfPages int, r *http.Reque
 	}
 	close(cc)
 }
+
+//GetComicDescription function to return the description of a comic
+func (ce *ComicExtra) GetComicDescription(doc *goquery.Document) (Description, error) {
+	var description Description
+	description.Name = strings.TrimSpace(doc.Find(".title-1").First().Text())
+	description.Description = strings.TrimSpace(doc.Find("#film-content").Text())
+	description.LargeImg, _ = doc.Find(".movie-l-img").Children().First().Attr("src")
+
+	doc.Find(".movie-dl").Find("dd").Each(func(index int, item *goquery.Selection) {
+		switch index {
+		case 1:
+			description.Status = strings.TrimSpace(item.Text())
+		case 2:
+			description.AlternateName = strings.TrimSpace(item.Text())
+		case 3:
+			description.ReleaseYear = strings.TrimSpace(item.Text())
+		case 4:
+			description.Author = strings.TrimSpace(item.Text())
+		case 5:
+			description.Genre = strings.TrimSpace(item.Text())
+		}
+	})
+	return description, nil
+}

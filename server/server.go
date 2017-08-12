@@ -9,69 +9,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-//
-// //Request Format -> /read-comic/{Comic Name}/{Chapter Number}?url={param}
-// func readComic(w http.ResponseWriter, r *http.Request) {
-// 	path := r.URL.Path[len("/read-comic/"):]
-// 	//0 = ComicName, 1 = Chapter Number
-// 	paths := strings.Split(path, "/")
-// 	comicName, chapterNumber := paths[0], paths[1]
-// 	//TODO: check how split returns resutls
-// 	if len(paths) != 2 {
-// 		// errorHandler(w, r, http.StatusBadRequest,err)
-// 		return
-// 	}
-//
-// 	choice := r.URL.Query().Get("url")
-// 	url, err := comicutils.CreateReadComicURL(choice, comicName, chapterNumber)
-// 	if err != nil {
-// 		model.ErrorHandler(w, http.StatusBadRequest, err)
-// 		return
-// 	}
-//
-// 	doc, err := utils.GetGoQueryDoc(url, r)
-// 	if err != nil {
-// 		model.ErrorHandler(w, http.StatusBadRequest, err)
-// 		return
-// 	}
-// 	urls := comicutils.GetChapterImages(doc, r, choice, url)
-//
-// 	switch choice {
-// 	case comicExtraURLParam:
-// 		numOfPages := doc.Find(".full-select").First().Children().Length()
-// 		pagesChannels := make(chan string, numOfPages)
-//
-// 		go getComicImageURL(url, r, numOfPages, pagesChannels)
-//
-// 		for i := range pagesChannels {
-// 			urls = append(urls, i)
-// 		}
-// 	case readcomicsURLParam:
-//
-// 	default:
-// 		return
-// 	}
-//
-// 	w.Header().Set("Content-Type", "application/json")
-// 	res, _ := json.Marshal(urls)
-// 	w.Write(res)
-// }
-//
-// //Helper function for ReadComic function
-// func getComicImageURL(url string, r *http.Request, numOfPages int, cc chan string) {
-// 	for i := 1; i <= numOfPages; i++ {
-// 		pageURL := url + "/" + strconv.Itoa(i)
-//
-// 		doc, err := utils.GetGoQueryDoc(pageURL, r)
-// 		if err != nil {
-// 			return
-// 		}
-// 		link, _ := doc.Find("#main_img").Attr("src")
-// 		cc <- link
-// 	}
-// 	close(cc)
-// }
-//
 // //Request Format -> /search-categories
 // func getSearchCategories(w http.ResponseWriter, r *http.Request) {
 // 	url := COMICEXTRA + "advanced-search"
@@ -222,5 +159,6 @@ func init() {
 	router.GET("/popular-comics/:pageNumber", api.GetPopularComics())
 	router.GET("/chapter-list/:comicName", api.GetComicChapterList())
 	router.GET("/chapter-pages/:comicName/:chapterNumber", api.GetChapterPages())
+	router.GET("/description/:comicName", api.GetComicDescription())
 	http.Handle("/", router)
 }
