@@ -18,16 +18,10 @@ func GetGoQueryDoc(url string, r *http.Request) (*goquery.Document, error) {
 		resp            *http.Response
 	)
 
-	if appengine.IsDevAppServer() {
-		c := appengine.NewContext(r)
-		client := urlfetch.Client(c)
-		resp, httpErr = client.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-
-	} else {
-		resp, httpErr = http.Get(url)
-		doc, docErr = goquery.NewDocumentFromResponse(resp)
-	}
+	c := appengine.NewContext(r)
+	client := urlfetch.Client(c)
+	resp, httpErr = client.Get(url)
+	doc, docErr = goquery.NewDocumentFromResponse(resp)
 
 	defer resp.Body.Close()
 
