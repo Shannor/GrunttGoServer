@@ -115,7 +115,7 @@ func (rcw *ReadComics) GetNumberOfPages(doc *goquery.Document) int {
 }
 
 //GetChapterPages return the urls for the pages in a chapter
-func (rcw *ReadComics) GetChapterPages(comicName string, chapterNumber int, numOfPages int, r *http.Request) ([]string, error) {
+func (rcw *ReadComics) GetChapterPages(comicName string, chapterNumber int, numOfPages int, r *http.Request) (Pages, error) {
 	baseURL := rcw.BaseURL + "comic/" + comicName + "/" + strconv.Itoa(chapterNumber)
 	pagesChannels := make(chan string, numOfPages)
 	var urls []string
@@ -124,7 +124,7 @@ func (rcw *ReadComics) GetChapterPages(comicName string, chapterNumber int, numO
 	for url := range pagesChannels {
 		urls = append(urls, url)
 	}
-	return urls, nil
+	return Pages{URLs: urls, TotalPages: numOfPages}, nil
 }
 
 //GetComicImageURL go routine to get the acutal urls

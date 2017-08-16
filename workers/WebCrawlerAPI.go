@@ -20,7 +20,7 @@ type Webcrawler interface {
 	GetComicChapterListPageAmount(doc *goquery.Document) int
 	GetComicChapterList(comicName string, numOfPages int, r *http.Request) (Chapters, error)
 	GetNumberOfPages(doc *goquery.Document) int
-	GetChapterPages(comicName string, chapterNumber int, numOfPages int, r *http.Request) ([]string, error)
+	GetChapterPages(comicName string, chapterNumber int, numOfPages int, r *http.Request) (Pages, error)
 	getComicImageURL(url string, numOfPages int, r *http.Request, pagesChan chan string)
 	GetComicDescription(doc *goquery.Document) (Description, error)
 	// GetSearchCategories() ([]string, error)
@@ -90,6 +90,12 @@ type SearchResult struct {
 
 //SearchResults Type for slice of SearchResult
 type SearchResults []SearchResult
+
+//Pages struct to hold the urls and the total number of pages
+type Pages struct {
+	URLs       []string `json:"urls"`
+	TotalPages int      `json:"total_pages"`
+}
 
 //Description Struct for information on a particular comic
 type Description struct {

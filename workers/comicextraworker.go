@@ -138,7 +138,7 @@ func (ce *ComicExtra) GetNumberOfPages(doc *goquery.Document) int {
 }
 
 //GetChapterPages method to return the url for all pages
-func (ce *ComicExtra) GetChapterPages(comicName string, chapterNumber int, numOfPages int, r *http.Request) ([]string, error) {
+func (ce *ComicExtra) GetChapterPages(comicName string, chapterNumber int, numOfPages int, r *http.Request) (Pages, error) {
 	baseURL := ce.BaseURL + comicName + "/chapter-" + strconv.Itoa(chapterNumber)
 	pagesChannels := make(chan string, numOfPages)
 	var urls []string
@@ -147,7 +147,7 @@ func (ce *ComicExtra) GetChapterPages(comicName string, chapterNumber int, numOf
 	for url := range pagesChannels {
 		urls = append(urls, url)
 	}
-	return urls, nil
+	return Pages{URLs: urls, TotalPages: numOfPages}, nil
 }
 
 //GetComicImageURL go routine to get the urls for the images
