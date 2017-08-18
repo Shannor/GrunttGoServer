@@ -94,7 +94,7 @@ type SearchResults []SearchResult
 //Pages struct to hold the urls and the total number of pages
 type Pages struct {
 	URLs       []string `json:"urls"`
-	TotalPages int      `json:"total_pages"`
+	TotalPages int      `json:"totalPages"`
 }
 
 //Description Struct for information on a particular comic
