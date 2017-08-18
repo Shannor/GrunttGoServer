@@ -101,7 +101,7 @@ type Pages struct {
 type Description struct {
 	Description   string `json:"description"`
 	LargeImg      string `json:"largeImg"`
-	FormatedName  string `json:"formatedName"`
+	FormatedName  string `json:"formattedName"`
 	Name          string `json:"name"`
 	AlternateName string `json:"alternateName"`
 	ReleaseYear   string `json:"releaseYear"`
