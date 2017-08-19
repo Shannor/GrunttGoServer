@@ -39,6 +39,11 @@ func (ce *ComicExtra) CreateComicDescriptionURL(comicName string) string {
 	return ce.BaseURL + "comic/" + comicName
 }
 
+//CreateSearchURL creates the url for ComicExtra's genres
+func (ce *ComicExtra) CreateSearchURL() string {
+	return ce.BaseURL + "comic-genres"
+}
+
 //GetAllComics performs the webcrawling to return all comics on the site
 func (ce *ComicExtra) GetAllComics(doc *goquery.Document) (Comics, error) {
 	var comics Comics
@@ -187,4 +192,18 @@ func (ce *ComicExtra) GetComicDescription(doc *goquery.Document) (Description, e
 		}
 	})
 	return description, nil
+}
+
+//GetSearchOptions returns the map of the possible search params
+func (ce *ComicExtra) GetSearchOptions(doc *goquery.Document) (SearchOptions, error) {
+	var searchOptions SearchOptions
+
+	doc.Find(".hl-box").Each(func(index int, item *goquery.Selection) {
+		anchor := item.Find("a")
+		link, _ := anchor.Attr("href")
+		values := []string{link}
+		searchOptions[anchor.Text()] = values
+	})
+
+	return searchOptions, nil
 }

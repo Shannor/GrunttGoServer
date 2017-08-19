@@ -40,6 +40,11 @@ func (rcw *ReadComics) CreateComicDescriptionURL(comicName string) string {
 	return rcw.BaseURL + "comic/" + comicName
 }
 
+//CreateSearchURL creates the url to reach the search interface
+func (rcw *ReadComics) CreateSearchURL() string {
+	return rcw.BaseURL + "advanced-search"
+}
+
 //GetAllComics method to scrape comics from readcomics
 func (rcw *ReadComics) GetAllComics(doc *goquery.Document) (Comics, error) {
 	var comics Comics
@@ -164,4 +169,10 @@ func (rcw *ReadComics) GetComicDescription(doc *goquery.Document) (Description, 
 		}
 	})
 	return description, nil
+}
+
+func (rcw *ReadComics) GetSearchOptions(doc *goquery.Document) (SearchOptions, error) {
+	var searchOptions SearchOptions
+
+	return searchOptions, nil
 }

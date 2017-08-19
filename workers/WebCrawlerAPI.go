@@ -14,7 +14,7 @@ type Webcrawler interface {
 	CreateComicChapterListURL(comicName string) string
 	CreateChapterPagesURL(comicName string, chapterNumber int) string
 	CreateComicDescriptionURL(comicName string) string
-	// CreateSearchURL() (string, error)
+	CreateSearchURL() string
 	GetAllComics(doc *goquery.Document) (Comics, error)
 	GetPopularComics(doc *goquery.Document) (PopularComics, error)
 	GetComicChapterListPageAmount(doc *goquery.Document) int
@@ -23,7 +23,7 @@ type Webcrawler interface {
 	GetChapterPages(comicName string, chapterNumber int, numOfPages int, r *http.Request) (Pages, error)
 	getComicImageURL(url string, numOfPages int, r *http.Request, pagesChan chan string)
 	GetComicDescription(doc *goquery.Document) (Description, error)
-	// GetSearchCategories() ([]string, error)
+	GetSearchOptions(doc *goquery.Document) (SearchOptions, error)
 	// Search(*goquery.Document) (SearchResults, error)
 }
 
@@ -109,3 +109,6 @@ type Description struct {
 	Author        string `json:"author"`
 	Genre         string `json:"genre"`
 }
+
+//SearchOptions a collection of possible search params
+type SearchOptions map[string][]string
