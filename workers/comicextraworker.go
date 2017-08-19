@@ -197,12 +197,15 @@ func (ce *ComicExtra) GetComicDescription(doc *goquery.Document) (Description, e
 //GetSearchOptions returns the map of the possible search params
 func (ce *ComicExtra) GetSearchOptions(doc *goquery.Document) (SearchOptions, error) {
 	var searchOptions SearchOptions
+	searchOptions = make(SearchOptions)
+	searchOptions["links"] = []string{}
+	searchOptions["genres"] = []string{}
 
 	doc.Find(".hl-box").Each(func(index int, item *goquery.Selection) {
 		anchor := item.Find("a")
 		link, _ := anchor.Attr("href")
-		values := []string{link}
-		searchOptions[anchor.Text()] = values
+		searchOptions["links"] = append(searchOptions["links"], link)
+		searchOptions["genres"] = append(searchOptions["genres"], anchor.Text())
 	})
 
 	return searchOptions, nil

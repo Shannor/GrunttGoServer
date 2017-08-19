@@ -26,5 +26,6 @@ func init() {
 	router.GET("/chapter-list/:comicName", api.GetComicChapterList())
 	router.GET("/chapter-pages/:comicName/:chapterNumber", api.GetChapterPages())
 	router.GET("/description/:comicName", api.GetComicDescription())
+	router.GET("/categories", api.GetSearchCategories())
 	http.Handle("/", router)
 }

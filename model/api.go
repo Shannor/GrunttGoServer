@@ -263,3 +263,47 @@ func (api *api) GetComicDescription() httprouter.Handle {
 		w.Write(body)
 	}
 }
+
+func (api *api) GetSearchCategories() httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		source := r.URL.Query().Get("source")
+
+		if source == "" {
+			http.Error(w, "No provided source in url", http.StatusBadRequest)
+			return
+		}
+
+		webcrawler, err := api.GetWebcrawler(source)
+		if err != nil {
+			msg := fmt.Sprintf("No matching webcrawler source for %s", source)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+
+		url := webcrawler.CreateSearchURL()
+
+		doc, err := utils.GetGoQueryDoc(url, r)
+		if err != nil {
+			msg := fmt.Sprintf("GetSearchCategories error. Error: %s", err.Error())
+			http.Error(w, msg, http.StatusInternalServerError)
+			return
+		}
+
+		searchOptions, err := webcrawler.GetSearchOptions(doc)
+		if err != nil {
+			msg := fmt.Sprintf("GetChapterPages error. Error: %s", err.Error())
+			http.Error(w, msg, http.StatusInternalServerError)
+			return
+		}
+
+		body, err := json.Marshal(searchOptions)
+		if err != nil {
+			msg := fmt.Sprintf("Error with Marshaling Description. Error: %s", err.Error())
+			http.Error(w, msg, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(body)
+	}
+}

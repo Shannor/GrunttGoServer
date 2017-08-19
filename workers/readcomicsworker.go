@@ -171,8 +171,22 @@ func (rcw *ReadComics) GetComicDescription(doc *goquery.Document) (Description, 
 	return description, nil
 }
 
+//GetSearchOptions get the search options for ReadComics
 func (rcw *ReadComics) GetSearchOptions(doc *goquery.Document) (SearchOptions, error) {
 	var searchOptions SearchOptions
+	searchOptions = make(SearchOptions)
 
+	searchOptions["status"] = []string{"Ongoing", "Completed"}
+	searchOptions["publisher"] = []string{}
+	//TODO: This can be optimised
+	doc.Find("select").Each(func(index int, item *goquery.Selection) {
+		name, _ := item.Attr("name")
+		switch name {
+		case "categories[]":
+			item.Children().Each(func(index int, inside *goquery.Selection) {
+				searchOptions["publisher"] = append(searchOptions["publisher"], inside.Text())
+			})
+		}
+	})
 	return searchOptions, nil
 }
